@@ -15,7 +15,7 @@ cd "$PROJECT_DIR"
 # Chemin vers l'environnement virtuel
 VENV_PATH="$PROJECT_DIR/.venv"
 # Liste des tags valides
-readonly VALID_TAGS=("update" "install" "configure")
+readonly VALID_TAGS=("update" "docker" "kubectl" "kubectl-convert" "starship" "aws-cli" "devops" "devtools" "git" "hashicorp" "terraform" "vagrant")
 # Version minimum de Python requise
 readonly MIN_PYTHON_VERSION="3.8"
 

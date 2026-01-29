@@ -67,30 +67,48 @@
 - name: Install hashicorp_software
   ansible.builtin.include_role:
     name: hashicorp_software
+  tags:
+    - hashicorp
+    - terraform
+    - vagrant
 
 - name: Install And Configure Git
   ansible.builtin.include_role:
     name: git
+  tags:
+    - git
 
 - name: Install Starship
   ansible.builtin.include_role:
     name: starship
+  tags:
+    - starship
 
 - name: Install Docker
   ansible.builtin.include_role:
     name: docker
+  tags:
+    - docker
 
 - name: Install kubectl
   ansible.builtin.include_role:
     name: kubectl
+  tags:
+    - kubectl
+    - kubectl-convert
 
 - name: Install devtools
   ansible.builtin.include_role:
     name: devtools
+  tags:
+    - devtools
 
 - name: Install devops tools
   ansible.builtin.include_role:
     name: devops
+  tags:
+    - devops
+    - aws-cli
 
 # - name: Install dbeaver
 #   ansible.builtin.include_role:

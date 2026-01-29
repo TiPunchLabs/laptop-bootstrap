@@ -125,7 +125,20 @@ uv run ansible-playbook playbook.yml --tags update
 
 ## Available Tags
 
-- `update`: Update and upgrade system packages
+| Tag | Description |
+|-----|-------------|
+| `update` | Update and upgrade system packages |
+| `docker` | Install Docker and Docker Compose |
+| `kubectl` | Install kubectl |
+| `kubectl-convert` | Install kubectl and kubectl-convert |
+| `starship` | Install Starship prompt |
+| `aws-cli` | Install AWS CLI v2 |
+| `devops` | Install DevOps tools (AWS CLI) |
+| `devtools` | Install development tools (Postman) |
+| `git` | Configure Git |
+| `hashicorp` | Install HashiCorp tools |
+| `terraform` | Install Terraform and Vagrant |
+| `vagrant` | Install Terraform and Vagrant |
 
 ## Security & Code Quality
 
