@@ -1,0 +1,40 @@
+---
+bootstrap_keyrings_dir: "/etc/apt/keyrings"
+
+bootstrap_software_list:
+  - name: "brave"
+    package: "brave-browser"
+    key_url: "https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg"
+    key_format: "gpg"
+    deb822:
+      uris: "https://brave-browser-apt-release.s3.brave.com"
+      suites: "stable"
+      components: ["main"]
+      architectures: ["{{ apt_arch }}"]
+
+  - name: "typora"
+    package: "typora"
+    key_url: "https://typora.io/linux/public-key.asc"
+    key_format: "ascii"
+    deb822:
+      uris: "https://typora.io/linux"
+      suites: "./"
+
+  - name: "nvidia-container-toolkit"
+    package: "nvidia-container-toolkit"
+    key_url: "https://nvidia.github.io/libnvidia-container/gpgkey"
+    key_format: "ascii"
+    deb822:
+      uris: "https://nvidia.github.io/libnvidia-container/stable/deb"
+      suites: "/"
+      append_arch_to_uri: true
+
+  - name: "dbeaver-ce"
+    package: "dbeaver-ce"
+    key_url: "https://dbeaver.io/debs/dbeaver.gpg.key"
+    key_format: "ascii"
+    key_id: "D33A1BD725ED047D"
+    deb822:
+      uris: "https://dbeaver.io/debs/dbeaver-ce"
+      suites: "/"
+      architectures: ["{{ apt_arch }}"]

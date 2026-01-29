@@ -1,0 +1,3 @@
+---
+- name: Install development tools
+  ansible.builtin.include_tasks: postman.yml

@@ -1,0 +1,105 @@
+---
+- name: Check if the host is a Debian or an Ubuntu
+  ansible.builtin.set_fact:
+    is_debian_like: "{{ ansible_facts['os_family'] == 'Debian' }}"
+
+- name: Verify if the host is a Debian or an Ubuntu
+  ansible.builtin.assert:
+    that:
+      - is_debian_like
+    msg: "This role is only supported on Debian familiy systems."
+
+- name: Set the system hostname
+  ansible.builtin.hostname:
+    name: "{{ bootstrap_desired_hostname }}"
+  when: ansible_facts['hostname'] != bootstrap_desired_hostname
+
+- name: Get the username running the deploy
+  become: false
+  ansible.builtin.command: whoami
+  register: username_on_the_host
+  delegate_to: localhost
+  changed_when: false
+
+- name: Set fact username on the host
+  ansible.builtin.set_fact:
+    local_user: "{{ username_on_the_host.stdout }}"
+
+- name: Update and upgrade package list
+  ansible.builtin.apt:
+    upgrade: true
+    update_cache: true
+    cache_valid_time: 3600  # Skip apt update if cache is less than 1 hour old
+  tags:
+    - update
+
+- name: Install a list of packages
+  ansible.builtin.apt:
+    pkg: "{{ bootstrap_packages }}"
+
+- name: Update file hosts
+  ansible.builtin.include_tasks:
+    file: update_hosts.yml
+
+- name: Install package from deb
+  ansible.builtin.include_tasks:
+    file: install_from_deb.yml
+  loop: "{{ bootstrap_deb_packages }}"
+  loop_control:
+    loop_var: deb_package
+
+- name: Detect dpkg architecture (e.g., amd64, arm64)
+  ansible.builtin.command: dpkg --print-architecture
+  register: dpkg_arch
+  changed_when: false
+
+- name: Save apt_arch fact
+  ansible.builtin.set_fact:
+    apt_arch: "{{ dpkg_arch.stdout | trim }}"
+
+- name: Install software
+  ansible.builtin.include_tasks:
+    file: install_software.yml
+  loop: "{{ bootstrap_software_list }}"
+  loop_control:
+    loop_var: software
+
+- name: Install hashicorp_software
+  ansible.builtin.include_role:
+    name: hashicorp_software
+
+- name: Install And Configure Git
+  ansible.builtin.include_role:
+    name: git
+
+- name: Install Starship
+  ansible.builtin.include_role:
+    name: starship
+
+- name: Install Docker
+  ansible.builtin.include_role:
+    name: docker
+
+- name: Install kubectl
+  ansible.builtin.include_role:
+    name: kubectl
+
+- name: Install devtools
+  ansible.builtin.include_role:
+    name: devtools
+
+- name: Install devops tools
+  ansible.builtin.include_role:
+    name: devops
+
+# - name: Install dbeaver
+#   ansible.builtin.include_role:
+#     name: dbeaver
+#   tags:
+#     - dbeaver
+
+# - name: Install nvidia-container-toolkit
+#   ansible.builtin.include_role:
+#     name: nvidia_container_toolkit
+#   tags:
+#     - nvidia-container-toolkit

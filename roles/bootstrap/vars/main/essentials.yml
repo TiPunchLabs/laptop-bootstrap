@@ -1,0 +1,24 @@
+---
+bootstrap_packages:
+  - tree
+  - vim
+  - python3-venv
+  - terminator
+  - curl
+  - httpie
+  - keepassxc
+  - podman
+  - podman-compose
+  - net-tools
+  - htop
+  - iftop
+  - bash-completion
+  - xclip
+  - jq
+  - yq
+  - sqlite3
+  - shellcheck
+  - gimp
+  - python3-argcomplete
+  - kubetail
+  - imagemagick

@@ -1,0 +1,19 @@
+---
+- name: Ensure Git is installed
+  ansible.builtin.apt:
+    name: git
+    state: present
+
+- name: Apply system git configuration
+  ansible.builtin.template:
+    src: system_gitconfig.j2
+    dest: /etc/gitconfig
+    mode: "0644"
+
+- name: Apply user git configuration
+  ansible.builtin.template:
+    src: user_gitconfig.j2
+    dest: "/home/{{ local_user }}/.gitconfig"
+    owner: "{{ local_user }}"
+    group: "{{ local_user }}"
+    mode: "0644"

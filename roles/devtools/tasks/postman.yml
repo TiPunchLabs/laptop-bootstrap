@@ -1,0 +1,33 @@
+---
+- name: Download Postman archive
+  ansible.builtin.get_url:
+    url: "https://dl.pstmn.io/download/latest/linux_64"
+    dest: "/tmp/postman.tar.gz"
+    mode: "0644"
+
+- name: Extract Postman
+  ansible.builtin.unarchive:
+    src: "/tmp/postman.tar.gz"
+    dest: "/opt/"
+    remote_src: true
+    creates: "/opt/Postman"
+
+- name: Create a symbolic link for Postman
+  ansible.builtin.file:
+    src: "/opt/Postman/Postman"
+    dest: "/usr/local/bin/postman"
+    state: link
+
+- name: Create a desktop entry for Postman
+  ansible.builtin.copy:
+    dest: "/usr/share/applications/postman.desktop"
+    content: |
+      [Desktop Entry]
+      Name=Postman
+      Exec=/opt/Postman/Postman
+      Icon=/opt/Postman/app/resources/app/assets/icon.png
+      Type=Application
+      Categories=Development;
+    owner: root
+    group: root
+    mode: "0644"

@@ -1,0 +1,15 @@
+# /etc/hosts file managed by Ansible
+
+127.0.0.1	 localhost
+
+# ansible_fqdn ansible_hostname
+
+# Custom host entries
+{% for host in bootstrap_custom_hosts %}
+{{ host.ip }}   {{ host.name }}
+{% endfor %}
+
+# The following lines are desirable for IPv6 capable hosts
+::1     localhost ip6-localhost ip6-loopback
+ff02::1 ip6-allnodes
+ff02::2 ip6-allrouters

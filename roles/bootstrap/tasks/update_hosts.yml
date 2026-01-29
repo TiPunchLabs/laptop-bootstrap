@@ -1,0 +1,9 @@
+---
+- name: Create file /etc/hosts from template hosts.j2
+  ansible.builtin.template:
+    src: templates/hosts.j2
+    dest: /etc/hosts
+    owner: root
+    group: root
+    mode: '0644'
+    backup: true

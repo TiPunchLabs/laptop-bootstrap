@@ -1,0 +1,17 @@
+---
+galaxy_info:
+  author: xgueret
+  description: Bootstrap Debian/Ubuntu workstation with packages, repositories and sub-roles orchestration
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - jammy
+        - noble
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+
+dependencies: []

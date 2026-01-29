@@ -1,0 +1,16 @@
+# Managed by Ansible — local edits will be overwritten.
+Types: deb
+{% set base_uri = (software.deb822.uris | trim).rstrip('/') -%}
+{% if software.deb822.append_arch_to_uri | default(false) -%}
+URIs: {{ base_uri }}/{{ apt_arch }}/
+{% else -%}
+URIs: {{ base_uri }}/
+{% endif -%}
+Suites: {{ software.deb822.suites }}
+{% if software.deb822.components is defined and software.deb822.components|length > 0 -%}
+Components: {{ software.deb822.components | join(' ') }}
+{% endif -%}
+Signed-By: {{ signed_by_path }}
+{% if software.deb822.architectures is defined and software.deb822.architectures|length > 0 -%}
+Architectures: {{ (software.deb822.architectures | default([apt_arch])) | join(' ') }}
+{% endif -%}

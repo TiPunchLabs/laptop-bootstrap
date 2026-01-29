@@ -1,0 +1,63 @@
+---
+- name: Set fact username on the host
+  ansible.builtin.set_fact:
+    local_user: "{{ username_on_the_host.stdout }}"
+
+- name: Ensure apt-transport-https is installed
+  ansible.builtin.apt:
+    name: apt-transport-https
+    state: present
+
+- name: Check if the key file exists for HashiCorp
+  ansible.builtin.stat:
+    path: "{{ hashicorp_software_gpg.key_path }}"
+  register: key_exists
+
+- name: Download GPG key for HashiCorp
+  ansible.builtin.get_url:
+    url: "{{ hashicorp_software_gpg.key_url }}"
+    dest: "/tmp/hashicorp-archive-keyring.gpg"
+    mode: '0644'
+  when: hashicorp_software_gpg.key_url is defined and not key_exists.stat.exists
+
+- name: Add GPG key for HashiCorp
+  ansible.builtin.command: >
+    gpg --dearmor -o {{ hashicorp_software_gpg.key_path }} /tmp/hashicorp-archive-keyring.gpg
+  args:
+    creates: "{{ hashicorp_software_gpg.path }}"
+  when: hashicorp_software_gpg.key_url is defined and not key_exists.stat.exists
+
+- name: Add repository for hashicorp package
+  ansible.builtin.apt_repository:
+    repo: "{{ hashicorp_software_gpg.repo }}"
+    filename: "hashicorp"
+    state: present
+
+- name: Install HashiCorp software
+  ansible.builtin.apt:
+    pkg: "{{ hashicorp_software_software }}"
+    state: present
+
+- name: Install useful dependencies
+  ansible.builtin.apt:
+    pkg: "{{ hashicorp_software_dependencies }}"
+    state: present
+
+- name: Install the vagrant-libvirt plugin
+  ansible.builtin.command:
+    cmd: vagrant plugin install vagrant-libvirt
+  args:
+    creates: /home/{{ local_user }}/.vagrant.d/gems/*/gems/vagrant-libvirt-*
+  become_user: "{{ local_user }}"
+
+- name: Ensure the current user is added to the libvirt group
+  ansible.builtin.user:
+    name: "{{ local_user }}"
+    groups: libvirt
+    append: true
+
+- name: Enable and start the libvirtd service
+  ansible.builtin.service:
+    name: libvirtd
+    enabled: true
+    state: started

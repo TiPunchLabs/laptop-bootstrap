@@ -1,0 +1,14 @@
+---
+- name: Manage install laptop with ansible
+  hosts: local
+  become: true
+  pre_tasks:
+    - name: Get username on the host
+      ansible.builtin.command: whoami
+      register: username_on_the_host
+
+    - name: Set fact local_user on the host
+      ansible.builtin.set_fact:
+        local_user: "{{ username_on_the_host.stdout }}"
+  roles:
+    - role: bootstrap

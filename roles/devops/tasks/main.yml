@@ -1,0 +1,105 @@
+---
+# ==========================================
+# AWS CLI v2 Installation with Auto-Update
+# ==========================================
+
+- name: Get latest AWS CLI v2 version from GitHub
+  ansible.builtin.uri:
+    url: "{{ devops_awscli_github_api }}"
+    return_content: true
+    headers:
+      Accept: application/vnd.github.v3+json
+  register: devops_awscli_tags_response
+  changed_when: false
+  failed_when: false
+
+- name: Set latest AWS CLI version fact
+  ansible.builtin.set_fact:
+    devops_awscli_latest_version: "{{ (devops_awscli_tags_response.content | from_json | selectattr('name', 'match', '^2\\.') | list | first).name }}"
+  when: devops_awscli_tags_response.status == 200
+
+- name: Set fallback version if API failed
+  ansible.builtin.set_fact:
+    devops_awscli_latest_version: "999.999.999"
+  when: devops_awscli_tags_response.status != 200
+
+- name: Check if AWS CLI is installed
+  ansible.builtin.command: aws --version
+  register: devops_awscli_current
+  changed_when: false
+  failed_when: false
+
+- name: Set current AWS CLI version fact
+  ansible.builtin.set_fact:
+    devops_awscli_current_version: "{{ devops_awscli_current.stdout | regex_search('aws-cli/([0-9.]+)', '\\1') | first | default('0.0.0') }}"
+  when: devops_awscli_current.rc == 0
+
+- name: Set current version to 0.0.0 if not installed
+  ansible.builtin.set_fact:
+    devops_awscli_current_version: "0.0.0"
+  when: devops_awscli_current.rc != 0
+
+- name: Display AWS CLI version information
+  ansible.builtin.debug:
+    msg: "AWS CLI: installed={{ devops_awscli_current_version }}, latest={{ devops_awscli_latest_version }}"
+
+- name: Detect system architecture
+  ansible.builtin.command: uname -m
+  register: devops_system_arch
+  changed_when: false
+
+- name: Set architecture for AWS CLI download
+  ansible.builtin.set_fact:
+    devops_awscli_arch: "{{ 'x86_64' if devops_system_arch.stdout == 'x86_64' else 'aarch64' }}"
+
+- name: Create temporary directory for AWS CLI
+  ansible.builtin.file:
+    path: "{{ devops_awscli_tmp_dir }}"
+    state: directory
+    mode: "0755"
+  when: devops_awscli_current_version is version(devops_awscli_latest_version, '<')
+
+- name: Download AWS CLI v2
+  ansible.builtin.get_url:
+    url: "https://awscli.amazonaws.com/awscli-exe-linux-{{ devops_awscli_arch }}.zip"
+    dest: "{{ devops_awscli_tmp_dir }}/awscliv2.zip"
+    mode: "0644"
+  when: devops_awscli_current_version is version(devops_awscli_latest_version, '<')
+
+- name: Ensure unzip is installed
+  ansible.builtin.apt:
+    name: unzip
+    state: present
+
+- name: Unzip AWS CLI v2
+  ansible.builtin.unarchive:
+    src: "{{ devops_awscli_tmp_dir }}/awscliv2.zip"
+    dest: "{{ devops_awscli_tmp_dir }}"
+    remote_src: true
+  when: devops_awscli_current_version is version(devops_awscli_latest_version, '<')
+
+- name: Install or update AWS CLI v2
+  ansible.builtin.command:
+    cmd: >
+      {{ devops_awscli_tmp_dir }}/aws/install
+      --install-dir {{ devops_awscli_install_dir }}
+      --bin-dir {{ devops_awscli_bin_dir }}
+      --update
+  when: devops_awscli_current_version is version(devops_awscli_latest_version, '<')
+  register: devops_awscli_install_result
+
+- name: Clean up temporary directory
+  ansible.builtin.file:
+    path: "{{ devops_awscli_tmp_dir }}"
+    state: absent
+
+- name: Verify AWS CLI installation
+  ansible.builtin.command: aws --version
+  register: devops_awscli_verify
+  changed_when: false
+  failed_when: false
+
+- name: Display installed AWS CLI version
+  ansible.builtin.debug:
+    msg: "AWS CLI installed: {{ devops_awscli_verify.stdout }}"
+  when: devops_awscli_verify.rc == 0

@@ -1,0 +1,8 @@
+---
+- name: Uncomment line in .bashrc
+  ansible.builtin.replace:
+    path: /home/{{ local_user }}/.bashrc
+    regexp: "^(\\s*)#{{ alias }}"
+    replace: "\\1{{ alias }}"
+  become_user: "{{ local_user }}"
+  notify: Apply the changes to .bashrc

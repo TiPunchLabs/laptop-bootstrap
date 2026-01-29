@@ -1,0 +1,5 @@
+---
+bootstrap_deb_packages:
+  - name: "code"
+    url: "https://code.visualstudio.com/sha/download?build=stable&os=linux-deb-x64"
+    src: "code.deb"

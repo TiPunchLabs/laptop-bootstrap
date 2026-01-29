@@ -1,0 +1,126 @@
+---
+# ——— Key paths ———
+- name: Define key paths
+  ansible.builtin.set_fact:
+    key_asc_path: "{{ bootstrap_keyrings_dir }}/{{ software.name }}.asc"
+    key_gpg_path: "{{ bootstrap_keyrings_dir }}/{{ software.name }}.gpg"
+
+- name: Ensure keyrings directory exists
+  ansible.builtin.file:
+    path: "{{ bootstrap_keyrings_dir }}"
+    state: directory
+    mode: "0755"
+
+# ——— Key handling ———
+- name: Check if GPG keyring exists
+  ansible.builtin.stat:
+    path: "{{ key_gpg_path }}"
+  register: keyring_stat
+
+- name: Download vendor GPG keyring (.gpg)
+  ansible.builtin.get_url:
+    url: "{{ software.key_url }}"
+    dest: "{{ key_gpg_path }}"
+    mode: "0644"
+  when:
+    - software.key_format | lower == "gpg"
+    - not keyring_stat.stat.exists
+
+- name: Download ASCII key (.asc)
+  ansible.builtin.get_url:
+    url: "{{ software.key_url }}"
+    dest: "{{ key_asc_path }}"
+    mode: "0644"
+  when:
+    - software.key_format | lower == "ascii"
+    - not keyring_stat.stat.exists
+
+- name: Dearmor ASCII key -> keyring (.gpg)
+  ansible.builtin.command:
+    cmd: "gpg --dearmor -o {{ key_gpg_path }} {{ key_asc_path }}"
+  args:
+    creates: "{{ key_gpg_path }}"
+  when: software.key_format | lower == "ascii"
+
+
+# ——— (facultatif mais conseillé) s'assurer que gpg est dispo ———
+- name: Ensure gnupg is installed
+  ansible.builtin.apt:
+    name: gnupg
+    state: present
+  become: true
+
+# ——— Ré-export de la clé pour compat APT ———
+- name: Create temporary GNUPG home
+  ansible.builtin.tempfile:
+    state: directory
+    suffix: _gnupg
+  register: gpg_tmp
+  when: software.key_id is defined
+
+# On importe ce qu'on a déjà (le .gpg dearmored) dans un trousseau temporaire
+- name: Import current key into temp keyring
+  ansible.builtin.command:
+    cmd: "gpg --homedir {{ gpg_tmp.path }} --import {{ key_gpg_path }}"
+  register: gpg_import
+  changed_when: "'imported' in (gpg_import.stdout + gpg_import.stderr)"
+  when:
+    - software.key_id is defined
+    - gpg_tmp.path is defined
+
+# Puis on ré-exporte **spécifiquement** l'ID de clé signataire vers le fichier Signed-By
+- name: Export specific key id to keyring file (non-interactive overwrite)
+  ansible.builtin.command:
+    cmd: >
+      gpg --batch --yes
+          --homedir {{ gpg_tmp.path }}
+          --output {{ key_gpg_path }}
+          --export {{ software.key_id }}
+  register: gpg_export
+  when:
+    - software.key_id is defined
+    - gpg_tmp.path is defined
+
+- name: Ensure keyring permissions
+  ansible.builtin.file:
+    path: "{{ key_gpg_path }}"
+    mode: "0644"
+  when: software.key_id is defined
+
+- name: Cleanup temporary GNUPG home
+  ansible.builtin.file:
+    path: "{{ gpg_tmp.path }}"
+    state: absent
+  when:
+    - software.key_id is defined
+    - gpg_tmp.path is defined
+
+- name: Remove downloaded ASCII key to keep things tidy
+  ansible.builtin.file:
+    path: "{{ key_asc_path }}"
+    state: absent
+  when: software.key_format | lower == "ascii"
+
+# ——— Deb822 source ———
+- name: Remove legacy .list (if any) to avoid conflicts
+  ansible.builtin.file:
+    path: "/etc/apt/sources.list.d/{{ software.name }}.list"
+    state: absent
+
+- name: Write Deb822 source file
+  ansible.builtin.template:
+    src: apt-source.sources.j2
+    dest: "/etc/apt/sources.list.d/{{ software.name }}.sources"
+    mode: "0644"
+  vars:
+    signed_by_path: "{{ key_gpg_path }}"
+  notify: Update apt cache
+
+# ——— Install package ———
+- name: Force apt cache update now (if template changed)
+  ansible.builtin.meta: flush_handlers
+
+- name: Install package
+  ansible.builtin.apt:
+    name: "{{ software.package }}"
+    state: present

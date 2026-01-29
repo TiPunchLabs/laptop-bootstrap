@@ -1,0 +1,7 @@
+# .ansible-lint
+warn_list: []
+skip_list:
+  - partial-become  # Force l'ignorance complète
+  - no-changed-when  # Désactive partout
+exclude_paths:
+  - venv/  # Exclure l'environnement virtuel

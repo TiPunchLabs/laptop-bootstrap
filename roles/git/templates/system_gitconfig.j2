@@ -1,0 +1,35 @@
+# This file is managed by Ansible. Do not edit manually.
+# Managed by Ansible - {{ ansible_date_time.iso8601 }}
+
+[alias]
+    st = status
+    co = checkout
+    ci = commit
+    br = branch
+    lg = log --oneline --graph --all --decorate
+
+[color]
+    ui = auto
+
+[merge]
+    tool = vimdiff
+    conflictstyle = diff3
+
+[diff]
+    tool = vimdiff
+
+[push]
+    default = simple
+
+[pack]
+    threads = 1
+
+[http]
+    sslVerify = true
+
+[core]
+    filemode = true
+    editor = vim
+    autocrlf = false
+    safecrlf = true
+    excludesfile = /etc/gitignore_global
