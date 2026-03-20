@@ -33,7 +33,7 @@ bootstrap_software_list:
     package: "dbeaver-ce"
     key_url: "https://dbeaver.io/debs/dbeaver.gpg.key"
     key_format: "ascii"
-    key_id: "D33A1BD725ED047D"
+    key_id: "132C13A8A330F403"
     deb822:
       uris: "https://dbeaver.io/debs/dbeaver-ce"
       suites: "/"

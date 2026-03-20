@@ -3,7 +3,7 @@
 hashicorp_software_gpg:
   key_path: /usr/share/keyrings/hashicorp-archive-keyring.gpg
   key_url: https://apt.releases.hashicorp.com/gpg
-  repo: "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com {{ ansible_distribution_release }} main"
+  repo: "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com {{ ansible_facts['distribution_release'] }} main"
 
 hashicorp_software_software:
   - vagrant
