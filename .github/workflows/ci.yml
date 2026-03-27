@@ -10,6 +10,8 @@ name: CI
 jobs:
   lint:
     runs-on: ubuntu-latest
+    env:
+      ANSIBLE_VAULT_PASSWORD_FILE: /dev/null
     steps:
       - uses: actions/checkout@v6
 
