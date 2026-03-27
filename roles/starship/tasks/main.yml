@@ -60,9 +60,9 @@
 
 - name: Ensure Starship init line is in .bashrc
   ansible.builtin.lineinfile:
-    path: "/home/{{ local_user }}/.bashrc"
+    path: "/home/{{ starship_local_user }}/.bashrc"
     line: 'eval "$(starship init bash)"'
     create: true
     state: present
     mode: '0644'
-  become_user: "{{ local_user }}"
+  become_user: "{{ starship_local_user }}"

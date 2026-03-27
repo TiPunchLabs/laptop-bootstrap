@@ -2,21 +2,21 @@
 - name: Check if the key file exists for Kubernetes
   ansible.builtin.stat:
     path: "{{ kubectl_kubernetes_gpg.path }}"
-  register: key_exists
+  register: kubectl_key_exists
 
 - name: Download Kubernetes official GPG key
   ansible.builtin.get_url:
     url: "{{ kubectl_kubernetes_gpg.url }}"
     dest: "{{ kubectl_kubernetes_gpg.tmp_path }}"
     mode: '0644'
-  when: kubectl_kubernetes_gpg.url is defined and not key_exists.stat.exists
+  when: kubectl_kubernetes_gpg.url is defined and not kubectl_key_exists.stat.exists
 
 - name: Add GPG key for Kubernetes
   ansible.builtin.command: >
     gpg --dearmor -o {{ kubectl_kubernetes_gpg.path }} {{ kubectl_kubernetes_gpg.tmp_path }}
   args:
     creates: "{{ kubectl_kubernetes_gpg.path }}"
-  when: kubectl_kubernetes_gpg.url is defined and not key_exists.stat.exists
+  when: kubectl_kubernetes_gpg.url is defined and not kubectl_key_exists.stat.exists
 
 - name: Set up the Kubernetes repository
   ansible.builtin.apt_repository:
@@ -32,12 +32,12 @@
 
 - name: Get system architecture
   ansible.builtin.command: uname -m
-  register: system_arch
+  register: kubectl_system_arch
   changed_when: false
 
 - name: Set architecture for download
   ansible.builtin.set_fact:
-    kubectl_arch: "{{ 'amd64' if system_arch.stdout == 'x86_64' else 'arm64' }}"
+    kubectl_arch: "{{ 'amd64' if kubectl_system_arch.stdout == 'x86_64' else 'arm64' }}"
 
 - name: Download kubectl-convert
   ansible.builtin.get_url:

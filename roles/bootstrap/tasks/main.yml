@@ -1,12 +1,12 @@
 ---
 - name: Check if the host is a Debian or an Ubuntu
   ansible.builtin.set_fact:
-    is_debian_like: "{{ ansible_facts['os_family'] == 'Debian' }}"
+    bootstrap_is_debian_like: "{{ ansible_facts['os_family'] == 'Debian' }}"
 
 - name: Verify if the host is a Debian or an Ubuntu
   ansible.builtin.assert:
     that:
-      - is_debian_like
+      - bootstrap_is_debian_like
     msg: "This role is only supported on Debian familiy systems."
 
 - name: Set the system hostname
@@ -17,13 +17,13 @@
 - name: Get the username running the deploy
   become: false
   ansible.builtin.command: whoami
-  register: username_on_the_host
+  register: bootstrap_username_on_the_host
   delegate_to: localhost
   changed_when: false
 
 - name: Set fact username on the host
   ansible.builtin.set_fact:
-    local_user: "{{ username_on_the_host.stdout }}"
+    bootstrap_local_user: "{{ bootstrap_username_on_the_host.stdout }}"
 
 - name: Update and upgrade package list
   ansible.builtin.apt:
@@ -50,12 +50,12 @@
 
 - name: Detect dpkg architecture (e.g., amd64, arm64)
   ansible.builtin.command: dpkg --print-architecture
-  register: dpkg_arch
+  register: bootstrap_dpkg_arch
   changed_when: false
 
 - name: Save apt_arch fact
   ansible.builtin.set_fact:
-    apt_arch: "{{ dpkg_arch.stdout | trim }}"
+    bootstrap_apt_arch: "{{ bootstrap_dpkg_arch.stdout | trim }}"
 
 - name: Install software
   ansible.builtin.include_tasks:
@@ -67,30 +67,48 @@
 - name: Install hashicorp_software
   ansible.builtin.include_role:
     name: hashicorp_software
+  tags:
+    - hashicorp
+    - terraform
+    - vagrant
 
 - name: Install And Configure Git
   ansible.builtin.include_role:
     name: git
+  tags:
+    - git
 
 - name: Install Starship
   ansible.builtin.include_role:
     name: starship
+  tags:
+    - starship
 
 - name: Install Docker
   ansible.builtin.include_role:
     name: docker
+  tags:
+    - docker
 
 - name: Install kubectl
   ansible.builtin.include_role:
     name: kubectl
+  tags:
+    - kubectl
+    - kubectl-convert
 
 - name: Install devtools
   ansible.builtin.include_role:
     name: devtools
+  tags:
+    - devtools
 
 - name: Install devops tools
   ansible.builtin.include_role:
     name: devops
+  tags:
+    - devops
+    - aws-cli
 
 # - name: Install dbeaver
 #   ansible.builtin.include_role:

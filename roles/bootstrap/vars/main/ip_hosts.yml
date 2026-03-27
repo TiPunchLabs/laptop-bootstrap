@@ -3,22 +3,26 @@ bootstrap_custom_hosts:
   - ip: 127.0.0.1
     name: "{{ bootstrap_desired_hostname }}"
   - ip: 127.0.0.1
-    name: openwebui.homelab
+    name: openwebui.local
   - ip: 127.0.0.1
-    name: portainer.homelab
+    name: portainer.local
   - ip: 127.0.0.1
-    name: excalidraw.homelab
+    name: excalidraw.local
   - ip: 127.0.0.1
-    name: nas.homelab
+    name: nas.local
   - ip: 127.0.0.1
-    name: proxmox.homelab
+    name: proxmox.local
   - ip: 127.0.0.1
-    name: n8n.homelab
+    name: n8n.local
   - ip: 127.0.0.1
-    name: traefik.homelab
+    name: traefik.local
   - ip: 127.0.0.1
-    name: prometheus.homelab
+    name: prometheus.local
   - ip: 127.0.0.1
-    name: grafana.homelab
+    name: grafana.local
   - ip: 127.0.0.1
-    name: alertmanager.homelab
+    name: alertmanager.local
+  - ip: 127.0.0.1
+    name: kandidat.local
+  - ip: 127.0.0.1
+    name: vpngate.local

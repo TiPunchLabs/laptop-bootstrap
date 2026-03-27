@@ -2,7 +2,7 @@
 Types: deb
 {% set base_uri = (software.deb822.uris | trim).rstrip('/') -%}
 {% if software.deb822.append_arch_to_uri | default(false) -%}
-URIs: {{ base_uri }}/{{ apt_arch }}/
+URIs: {{ base_uri }}/{{ bootstrap_apt_arch }}/
 {% else -%}
 URIs: {{ base_uri }}/
 {% endif -%}
@@ -12,5 +12,5 @@ Components: {{ software.deb822.components | join(' ') }}
 {% endif -%}
 Signed-By: {{ signed_by_path }}
 {% if software.deb822.architectures is defined and software.deb822.architectures|length > 0 -%}
-Architectures: {{ (software.deb822.architectures | default([apt_arch])) | join(' ') }}
+Architectures: {{ (software.deb822.architectures | default([bootstrap_apt_arch])) | join(' ') }}
 {% endif -%}
