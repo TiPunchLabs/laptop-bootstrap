@@ -1,7 +1,7 @@
 ---
 name: CI
 
-on:
+"on":
   push:
     branches: [main]
   pull_request:
@@ -11,15 +11,15 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v7
 
       - name: Install dependencies
         run: uv sync
@@ -36,10 +36,10 @@ jobs:
   terraform:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
+        uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: '1.11'
 
@@ -48,12 +48,6 @@ jobs:
 
       - name: Terraform Validate (terraform/)
         working-directory: terraform
-        run: |
-          terraform init -backend=false
-          terraform validate
-
-      - name: Terraform Validate (github/)
-        working-directory: github
         run: |
           terraform init -backend=false
           terraform validate

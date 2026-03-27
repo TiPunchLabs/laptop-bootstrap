@@ -14,5 +14,7 @@ rules:
 ignore: |
   .ansible-lint
   .yamllint
+  .venv/
+  venv/
   **/vault/**/*.yml
   **/vault/**/*.yaml

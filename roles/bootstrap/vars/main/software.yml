@@ -10,7 +10,7 @@ bootstrap_software_list:
       uris: "https://brave-browser-apt-release.s3.brave.com"
       suites: "stable"
       components: ["main"]
-      architectures: ["{{ apt_arch }}"]
+      architectures: ["{{ bootstrap_apt_arch }}"]
 
   - name: "typora"
     package: "typora"
@@ -37,4 +37,4 @@ bootstrap_software_list:
     deb822:
       uris: "https://dbeaver.io/debs/dbeaver-ce"
       suites: "/"
-      architectures: ["{{ apt_arch }}"]
+      architectures: ["{{ bootstrap_apt_arch }}"]
