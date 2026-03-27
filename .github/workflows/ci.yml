@@ -11,7 +11,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     env:
-      ANSIBLE_VAULT_PASSWORD_FILE: /dev/null
+      ANSIBLE_VAULT_PASSWORD_FILE: ""
     steps:
       - uses: actions/checkout@v6
 
