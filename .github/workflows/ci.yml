@@ -10,8 +10,6 @@ name: CI
 jobs:
   lint:
     runs-on: ubuntu-latest
-    env:
-      ANSIBLE_VAULT_PASSWORD_FILE: ""
     steps:
       - uses: actions/checkout@v6
 
@@ -25,6 +23,11 @@ jobs:
 
       - name: Install dependencies
         run: uv sync
+
+      - name: Create dummy vault password for CI
+        run: |
+          echo 'ci-dummy-vault-password' > /tmp/vault-pass.txt
+          echo "ANSIBLE_VAULT_PASSWORD_FILE=/tmp/vault-pass.txt" >> "$GITHUB_ENV"
 
       - name: Run yamllint
         run: uv run yamllint .
