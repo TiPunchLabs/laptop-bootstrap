@@ -10,8 +10,8 @@ bootstrap_custom_hosts:
     name: excalidraw.local
   - ip: 127.0.0.1
     name: nas.local
-  - ip: 127.0.0.1
-    name: proxmox.local
+  - ip: 192.168.1.70
+    name: proxmox.internal
   - ip: 127.0.0.1
     name: n8n.local
   - ip: 127.0.0.1
@@ -22,7 +22,7 @@ bootstrap_custom_hosts:
     name: grafana.local
   - ip: 127.0.0.1
     name: alertmanager.local
-  - ip: 127.0.0.1
-    name: kandidat.local
-  - ip: 127.0.0.1
-    name: vpngate.local
+  - ip: 192.168.1.70
+    name: kandidat.internal
+  - ip: 192.168.1.70
+    name: vpngate.internal
