@@ -121,3 +121,9 @@
 #     name: nvidia_container_toolkit
 #   tags:
 #     - nvidia-container-toolkit
+
+- name: Configure split DNS
+  ansible.builtin.include_role:
+    name: dns
+  tags:
+    - dns
