@@ -9,7 +9,7 @@ This project uses Ansible to automate the installation and configuration of a la
 - `ansible.cfg`: Global Ansible configuration
 - `inventory.yml`: Defines hosts and groups for Ansible
 - `playbook.yml`: Main playbook orchestrating the role execution
-- `scripts/`: Shell scripts
+- `bin/`: Shell scripts
   - `local_laptop.sh`: Bootstrap script to run the playbook
   - `ansible-vault-pass.sh`: Vault password helper
   - `check_ansible_vault.sh`: Pre-commit hook for vault encryption
@@ -49,7 +49,7 @@ This project uses Ansible to automate the installation and configuration of a la
 ├── pyproject.toml
 ├── uv.lock
 ├── README.md
-├── scripts
+├── bin
 │   ├── add-yaml-document-start.sh
 │   ├── ansible-vault-pass.sh
 │   ├── check_ansible_vault.sh
@@ -108,13 +108,13 @@ export ANSIBLE_VAULT_PASSWORD=$(pass ansible/vault)
 ### 4. Run the Playbook
 
 ```sh
-./scripts/local_laptop.sh
+./bin/local_laptop.sh
 ```
 
 Or with a specific tag:
 
 ```sh
-./scripts/local_laptop.sh update
+./bin/local_laptop.sh update
 ```
 
 Or directly with ansible-playbook:
