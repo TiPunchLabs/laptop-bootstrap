@@ -20,10 +20,12 @@
   register: bootstrap_username_on_the_host
   delegate_to: localhost
   changed_when: false
+  tags: always
 
 - name: Set fact username on the host
   ansible.builtin.set_fact:
     bootstrap_local_user: "{{ bootstrap_username_on_the_host.stdout }}"
+  tags: always
 
 - name: Update and upgrade package list
   ansible.builtin.apt:
@@ -91,6 +93,10 @@
 - name: Cleanup legacy installations before mise takes over
   ansible.builtin.include_role:
     name: cleanup_legacy
+    apply:
+      tags:
+        - cleanup-legacy
+        - cli-tools
   tags:
     - cleanup-legacy
     - cli-tools
@@ -98,6 +104,10 @@
 - name: Install CLI tools via mise
   ansible.builtin.include_role:
     name: cli_tools
+    apply:
+      tags:
+        - cli-tools
+        - mise
   tags:
     - cli-tools
     - mise

@@ -4,7 +4,6 @@
     pkg: "{{ cleanup_legacy_apt_packages }}"
     state: absent
     purge: true
-    autoremove: true
 
 - name: Remove legacy apt source lists
   ansible.builtin.file:

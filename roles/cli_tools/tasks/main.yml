@@ -39,7 +39,7 @@
   environment:
     HOME: "/home/{{ bootstrap_local_user }}"
   become_user: "{{ bootstrap_local_user }}"
-  when: cli_tools_mise_config.changed or (cli_tools_mise_ls.stdout | from_json | length) < (cli_tools_mise_tools | length)
+  when: cli_tools_mise_config.changed or (cli_tools_mise_ls.stdout | default('[]', true) | from_json | length) < (cli_tools_mise_tools | length)
   changed_when: true
 
 - name: Add mise activation + starship init to .bashrc
