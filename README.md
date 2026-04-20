@@ -134,6 +134,20 @@ uv run ansible-playbook playbook.yml --tags update
 | `cli-tools` | Install/update all CLI tools via mise |
 | `mise` | Alias for `cli-tools` |
 
+## Migrating from a Pre-mise Laptop
+
+If you are upgrading a laptop that was provisioned before [ADR-0001](docs/adr/0001-unified-cli-tool-management-with-mise.md), run the two tags **in this order**:
+
+```sh
+uv run ansible-playbook playbook.yml --tags cleanup-legacy
+uv run ansible-playbook playbook.yml --tags cli-tools
+exec bash   # reload PATH so mise shims take precedence over /usr/local/bin
+```
+
+> ⚠️ **Transition window** — between `cleanup-legacy` and `cli-tools`, the following tools are **temporarily absent**: `starship`, `direnv`, `uv`, `eza`, `bat`, `fzf`, `kubectl`, `terraform`. This is expected. Do not close the terminal or rely on those commands until `cli-tools` completes. Running the two tags back-to-back keeps the window to a few minutes.
+
+> 💡 **Note on `exec bash`** — `cli_tools` adds `eval "$(mise activate bash)"` to `~/.bashrc`, but the current shell only picks it up after re-reading the file. Without `exec bash` (or opening a new terminal), `which kubectl` may still resolve to the old `/usr/local/bin/kubectl` binary instead of the mise shim.
+
 ## Security & Code Quality
 
 The project uses `pre-commit` to enforce code quality and security checks.

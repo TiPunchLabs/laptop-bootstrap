@@ -98,6 +98,19 @@ Because several tools were previously installed by other means, the migration mu
 
 This cleanup is implemented in a dedicated `cleanup_legacy` Ansible role, ordered **before** `cli_tools` in the bootstrap play.
 
+### Operational migration steps
+
+On a pre-mise laptop, the two tags must be run back-to-back in order:
+
+```sh
+uv run ansible-playbook playbook.yml --tags cleanup-legacy
+uv run ansible-playbook playbook.yml --tags cli-tools
+exec bash
+```
+
+- **Transition window**: between the two tag runs, `starship`, `direnv`, `uv`, `eza`, `bat`, `fzf`, `kubectl`, `terraform` are uninstalled and not yet reinstalled. Any shell or tooling that depends on them will fail during that gap. Do not interleave other work.
+- **`exec bash` is mandatory**: `cli_tools` writes `eval "$(mise activate bash)"` into `~/.bashrc`. The running shell keeps the old `PATH` (including `/usr/local/bin` where stale binaries may still live on partially-cleaned systems) until the rc file is re-sourced. `exec bash` replaces the current shell in place — opening a new terminal is equivalent.
+
 ------
 
 ## References
