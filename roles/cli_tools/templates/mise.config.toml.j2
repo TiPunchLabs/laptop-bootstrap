@@ -1,0 +1,7 @@
+# Managed by Ansible — edits will be overwritten.
+# Source of truth: roles/cli_tools/vars/main.yml (cli_tools_mise_tools)
+
+[tools]
+{% for tool, version in cli_tools_mise_tools.items() -%}
+{{ tool }} = "{{ version }}"
+{% endfor -%}

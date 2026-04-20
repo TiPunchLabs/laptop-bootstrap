@@ -16,13 +16,12 @@ This project uses Ansible to automate the installation and configuration of a la
   - `add-yaml-document-start.sh`: Pre-commit hook for YAML formatting
 - `roles/`: Contains various Ansible roles
   - `bootstrap/`: Main role for laptop installation and configuration (orchestrates other roles)
-  - `devops/`: DevOps tools installation (AWS CLI v2)
+  - `cli_tools/`: Unified CLI tool manager via [mise](https://mise.jdx.dev/) — installs uv, fzf, direnv, zoxide, eza, bat, chezmoi, starship, kubectl, terraform, awscli
+  - `cleanup_legacy/`: Removes pre-migration apt packages / binaries / repos superseded by mise
   - `devtools/`: Development tools installation (e.g., Postman)
   - `docker/`: Docker and Docker Compose installation
   - `git/`: Git configuration
-  - `hashicorp_software/`: Terraform, Vagrant and libvirt installation
-  - `kubectl/`: `kubectl` and `kubectl-convert` installation
-  - `starship/`: Starship prompt installation
+  - `vagrant/`: Vagrant + libvirt + vagrant-libvirt plugin (kept system-managed per ADR-0001)
 - `github/`: Terraform configuration for GitHub resources (from [TiPunchLabs](https://github.com/TiPunchLabs) project)
 
 ```
@@ -56,13 +55,12 @@ This project uses Ansible to automate the installation and configuration of a la
 │   └── local_laptop.sh
 └── roles
     ├── bootstrap
-    ├── devops
+    ├── cli_tools
+    ├── cleanup_legacy
     ├── devtools
     ├── docker
     ├── git
-    ├── hashicorp_software
-    ├── kubectl
-    └── starship
+    └── vagrant
 ```
 
 ## Prerequisites
@@ -129,16 +127,12 @@ uv run ansible-playbook playbook.yml --tags update
 |-----|-------------|
 | `update` | Update and upgrade system packages |
 | `docker` | Install Docker and Docker Compose |
-| `kubectl` | Install kubectl |
-| `kubectl-convert` | Install kubectl and kubectl-convert |
-| `starship` | Install Starship prompt |
-| `aws-cli` | Install AWS CLI v2 |
-| `devops` | Install DevOps tools (AWS CLI) |
-| `devtools` | Install development tools (Postman) |
 | `git` | Configure Git |
-| `hashicorp` | Install HashiCorp tools |
-| `terraform` | Install Terraform and Vagrant |
-| `vagrant` | Install Terraform and Vagrant |
+| `devtools` | Install development tools (Postman) |
+| `vagrant` | Install Vagrant + libvirt stack |
+| `cleanup-legacy` | Remove pre-mise installations |
+| `cli-tools` | Install/update all CLI tools via mise |
+| `mise` | Alias for `cli-tools` |
 
 ## Security & Code Quality
 
@@ -168,6 +162,12 @@ pre-commit run ansible-lint --all-files
 # Update hooks to latest versions
 pre-commit autoupdate
 ```
+
+## Architecture Decisions
+
+See [`docs/adr/`](docs/adr/) for the list of Architecture Decision Records. Notably:
+
+- [ADR-0001](docs/adr/0001-unified-cli-tool-management-with-mise.md) — Unified CLI tool management with mise
 
 ## Contributors
 

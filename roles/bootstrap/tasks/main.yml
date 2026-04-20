@@ -64,12 +64,10 @@
   loop_control:
     loop_var: software
 
-- name: Install hashicorp_software
+- name: Install vagrant + libvirt
   ansible.builtin.include_role:
-    name: hashicorp_software
+    name: vagrant
   tags:
-    - hashicorp
-    - terraform
     - vagrant
 
 - name: Install And Configure Git
@@ -78,24 +76,11 @@
   tags:
     - git
 
-- name: Install Starship
-  ansible.builtin.include_role:
-    name: starship
-  tags:
-    - starship
-
 - name: Install Docker
   ansible.builtin.include_role:
     name: docker
   tags:
     - docker
-
-- name: Install kubectl
-  ansible.builtin.include_role:
-    name: kubectl
-  tags:
-    - kubectl
-    - kubectl-convert
 
 - name: Install devtools
   ansible.builtin.include_role:
@@ -103,12 +88,19 @@
   tags:
     - devtools
 
-- name: Install devops tools
+- name: Cleanup legacy installations before mise takes over
   ansible.builtin.include_role:
-    name: devops
+    name: cleanup_legacy
   tags:
-    - devops
-    - aws-cli
+    - cleanup-legacy
+    - cli-tools
+
+- name: Install CLI tools via mise
+  ansible.builtin.include_role:
+    name: cli_tools
+  tags:
+    - cli-tools
+    - mise
 
 # - name: Install dbeaver
 #   ansible.builtin.include_role:

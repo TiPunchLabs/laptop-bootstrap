@@ -1,0 +1,53 @@
+---
+- name: Install mise via upstream script  # noqa: command-instead-of-module
+  ansible.builtin.shell:
+    cmd: "set -o pipefail && curl -fsSL {{ cli_tools_mise_install_url }} | sh"
+    executable: /bin/bash
+    creates: "{{ cli_tools_mise_bin }}"
+  environment:
+    HOME: "/home/{{ bootstrap_local_user }}"
+  become_user: "{{ bootstrap_local_user }}"
+
+- name: Ensure mise config directory exists
+  ansible.builtin.file:
+    path: "{{ cli_tools_mise_config_dir }}"
+    state: directory
+    owner: "{{ bootstrap_local_user }}"
+    group: "{{ bootstrap_local_user }}"
+    mode: '0755'
+
+- name: Render mise global config
+  ansible.builtin.template:
+    src: mise.config.toml.j2
+    dest: "{{ cli_tools_mise_config_file }}"
+    owner: "{{ bootstrap_local_user }}"
+    group: "{{ bootstrap_local_user }}"
+    mode: '0644'
+  register: cli_tools_mise_config
+
+- name: List currently installed mise tools
+  ansible.builtin.command: "{{ cli_tools_mise_bin }} ls --current --json"
+  environment:
+    HOME: "/home/{{ bootstrap_local_user }}"
+  become_user: "{{ bootstrap_local_user }}"
+  register: cli_tools_mise_ls
+  changed_when: false
+
+- name: Install/update all tools declared in mise config
+  ansible.builtin.command:
+    cmd: "{{ cli_tools_mise_bin }} install --yes"
+  environment:
+    HOME: "/home/{{ bootstrap_local_user }}"
+  become_user: "{{ bootstrap_local_user }}"
+  when: cli_tools_mise_config.changed or (cli_tools_mise_ls.stdout | from_json | length) < (cli_tools_mise_tools | length)
+  changed_when: true
+
+- name: Add mise activation + starship init to .bashrc
+  ansible.builtin.lineinfile:
+    path: "/home/{{ bootstrap_local_user }}/.bashrc"
+    line: "{{ item }}"
+    state: present
+    create: true
+    mode: '0644'
+  become_user: "{{ bootstrap_local_user }}"
+  loop: "{{ cli_tools_bashrc_lines }}"
