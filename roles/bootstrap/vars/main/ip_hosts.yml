@@ -2,21 +2,3 @@
 bootstrap_custom_hosts:
   - ip: 127.0.0.1
     name: "{{ bootstrap_desired_hostname }}"
-  - ip: 127.0.0.1
-    name: openwebui.local
-  - ip: 127.0.0.1
-    name: portainer.local
-  - ip: 127.0.0.1
-    name: excalidraw.local
-  - ip: 127.0.0.1
-    name: nas.local
-  - ip: 127.0.0.1
-    name: n8n.local
-  - ip: 127.0.0.1
-    name: traefik.local
-  - ip: 127.0.0.1
-    name: prometheus.local
-  - ip: 127.0.0.1
-    name: grafana.local
-  - ip: 127.0.0.1
-    name: alertmanager.local

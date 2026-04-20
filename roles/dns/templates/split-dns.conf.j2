@@ -1,5 +1,0 @@
-{{ ansible_managed | comment }}
-
-[Resolve]
-DNS={{ item.servers | join(' ') }}
-Domains=~{{ item.name }}
