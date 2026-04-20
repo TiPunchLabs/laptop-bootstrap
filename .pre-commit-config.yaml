@@ -30,7 +30,7 @@ repos:
     hooks:
       - id: check-ansible-vault
         name: Check Ansible Vault Encryption
-        entry: bash scripts/check_ansible_vault.sh
+        entry: bash bin/check_ansible_vault.sh
         language: system
         files: (^|/)vault/.*$
         stages: [pre-commit]
@@ -39,7 +39,7 @@ repos:
     hooks:
       - id: add-yaml-document-start
         name: Add YAML document start if missing
-        entry: bash scripts/add-yaml-document-start.sh
+        entry: bash bin/add-yaml-document-start.sh
         language: system
         files: \.(yml|yaml)$
         stages: [pre-commit]

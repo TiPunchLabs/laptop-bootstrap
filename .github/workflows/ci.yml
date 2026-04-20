@@ -51,8 +51,8 @@ jobs:
       - name: Terraform Format Check
         run: terraform fmt -check -recursive
 
-      - name: Terraform Validate (terraform/)
-        working-directory: terraform
+      - name: Terraform Validate (github-terraform/)
+        working-directory: github-terraform
         run: |
           terraform init -backend=false
           terraform validate
