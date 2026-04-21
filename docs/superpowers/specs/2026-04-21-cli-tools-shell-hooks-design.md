@@ -171,7 +171,7 @@ vagrant ssh -c "grep -A3 'BEGIN ANSIBLE MANAGED: cli_tools' ~/.bashrc"
 
 ## Follow-up / migration doc update
 
-Update `docs/guide-pre-mise-migration.md` with a "Manual `.bashrc` cleanup" section listing the exact literal strings that the role does *not* auto-remove on migration:
+Extend the existing **Migrating from a Pre-mise Laptop** section in `README.md` (line 137) with a "Manual `.bashrc` cleanup" subsection listing the exact literal strings that the role does *not* auto-remove on migration:
 
 ```
 eval "$(starship init bash)"     # remove the standalone copy; block owns it now
@@ -184,6 +184,6 @@ eval "$(direnv hook bash)"       # same
 - [ ] `roles/cli_tools/tasks/main.yml` — replace the `lineinfile` loop task with `blockinfile`.
 - [ ] `roles/cleanup_legacy/vars/main.yml` — add `cleanup_legacy_bashrc_lines`.
 - [ ] `roles/cleanup_legacy/tasks/main.yml` — append "Strip orphan bashrc lines" task.
-- [ ] `docs/guide-pre-mise-migration.md` — add manual-cleanup section.
+- [ ] `README.md` — extend "Migrating from a Pre-mise Laptop" section with manual-cleanup subsection.
 - [ ] Smoke-test run green on Vagrant.
 - [ ] Second playbook run on laptop reports 0 changed tasks.
