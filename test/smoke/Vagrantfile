@@ -1,0 +1,71 @@
+# frozen_string_literal: true
+
+# Smoke test harness for laptop-bootstrap.
+# Spins up a clean Ubuntu VM via libvirt and replays the playbook inside it.
+# See docs/guide-smoke-test-vagrant.md for the full walkthrough.
+
+REPO_ROOT = File.expand_path("../..", __dir__)
+
+# Box override: set LAPTOP_BOOTSTRAP_BOX=debian/bookworm64 to test another distro.
+BOX = ENV.fetch("LAPTOP_BOOTSTRAP_BOX", "bento/ubuntu-24.04")
+
+# Tags override: set LAPTOP_BOOTSTRAP_TAGS=cli-tools to scope the replay.
+# Defaults run the whole playbook minus the vagrant role (no nested libvirt).
+TAGS      = ENV.fetch("LAPTOP_BOOTSTRAP_TAGS",      "").split(",").reject(&:empty?)
+SKIP_TAGS = ENV.fetch("LAPTOP_BOOTSTRAP_SKIP_TAGS", "vagrant").split(",").reject(&:empty?)
+
+Vagrant.configure("2") do |config|
+  config.vm.box      = BOX
+  config.vm.hostname = "laptop-bootstrap-smoke"
+
+  # rsync beats 9p for reliability; exclude host-only artifacts and vault
+  # secrets (ansible would refuse to start if it finds an encrypted file
+  # without the password; `vault_*` vars are stubbed via extra_vars below).
+  config.vm.synced_folder REPO_ROOT, "/vagrant",
+                          type: "rsync",
+                          rsync__exclude: [
+                            ".git/",
+                            ".venv/",
+                            "venv/",
+                            "*.retry",
+                            "test/smoke/.vagrant/",
+                            "group_vars/all/vault/",
+                          ]
+
+  config.vm.provider :libvirt do |lv|
+    lv.memory = 4096
+    lv.cpus   = 2
+    lv.driver = "kvm"
+  end
+
+  # Ansible bootstrap-of-the-bootstrap: ansible_local needs ansible in the VM.
+  config.vm.provision "shell", inline: <<~SHELL
+    set -euo pipefail
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update -qq
+    apt-get install -y -qq python3-pip python3-venv ansible-core rsync
+  SHELL
+
+  config.vm.provision "ansible_local" do |a|
+    a.playbook       = "/vagrant/playbook.yml"
+    a.inventory_path = "/vagrant/inventory.yml"
+    a.config_file    = "/vagrant/test/smoke/ansible.cfg"
+    a.install        = false
+    a.limit          = "local"
+    a.verbose        = ENV.fetch("LAPTOP_BOOTSTRAP_VERBOSE", "false") == "true"
+    a.tags           = TAGS      unless TAGS.empty?
+    a.skip_tags      = SKIP_TAGS unless SKIP_TAGS.empty?
+
+    # Stub the vault-backed vars consumed by the public aliases in
+    # group_vars/all/vars.yml. extra_vars has top precedence, so the
+    # playbook resolves `desired_hostname` to the smoke value below.
+    # git_user_email / git_user_name fall back to vars.yml defaults
+    # (myemail@example.com / myname) — no stub needed for a smoke run.
+    a.extra_vars = {
+      vault_desired_hostname: "laptop-bootstrap-smoke",
+      # Skip GUI .deb installs (VS Code etc.) — they pull in libasound2 and
+      # other desktop libraries that make no sense on a headless smoke VM.
+      bootstrap_deb_packages: [],
+    }
+  end
+end

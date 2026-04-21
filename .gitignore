@@ -48,3 +48,6 @@ Thumbs.db
 
 # Log files
 *.log
+
+# Vagrant runtime state (VM id, SSH config, etc.)
+.vagrant/

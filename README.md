@@ -183,6 +183,18 @@ See [`docs/adr/`](docs/adr/) for the list of Architecture Decision Records. Nota
 
 - [ADR-0001](docs/adr/0001-unified-cli-tool-management-with-mise.md) — Unified CLI tool management with mise
 
+## Testing
+
+A smoke-test harness replays the playbook inside a clean Ubuntu VM via Vagrant + libvirt, so you can validate changes without touching your real laptop:
+
+```sh
+cd test/smoke
+vagrant up         # boot VM, install ansible, run playbook
+vagrant destroy    # clean up
+```
+
+See [`test/smoke/README.md`](test/smoke/README.md) for the cheatsheet and [`docs/guide-smoke-test-vagrant.md`](docs/guide-smoke-test-vagrant.md) for the full walkthrough (architecture, troubleshooting, vault handling).
+
 ## Contributors
 
 - **Author**: Xavier GUERET [![GitHub followers](https://img.shields.io/github/followers/xgueret?style=social)](https://github.com/xgueret) [![Twitter Follow](https://img.shields.io/twitter/follow/xgueret?style=social)](https://x.com/hixmaster) [![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?style=flat&logo=linkedin)](https://www.linkedin.com/in/xavier-gueret-47bb3019b/)
