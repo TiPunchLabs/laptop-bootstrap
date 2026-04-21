@@ -1,0 +1,30 @@
+---
+# mise install script (single bootstrap entry point)
+cli_tools_mise_install_url: https://mise.run
+
+# Path to the mise binary once installed (per-user)
+cli_tools_mise_bin: "/home/{{ bootstrap_local_user }}/.local/bin/mise"
+
+# Path to the global mise config
+cli_tools_mise_config_dir: "/home/{{ bootstrap_local_user }}/.config/mise"
+cli_tools_mise_config_file: "{{ cli_tools_mise_config_dir }}/config.toml"
+
+# Tools declared in mise config.toml. Use "latest" unless a pinned version is needed.
+cli_tools_mise_tools:
+  uv: latest
+  fzf: latest
+  direnv: latest
+  zoxide: latest
+  eza: latest
+  bat: latest
+  chezmoi: latest
+  starship: latest
+  kubectl: latest
+  terraform: latest
+  awscli: latest
+
+# Shell hooks to append to .bashrc (mise activate must come first — it puts tool
+# shims on PATH, so `starship init bash` can resolve the mise-managed binary)
+cli_tools_bashrc_lines:
+  - 'eval "$(~/.local/bin/mise activate bash)"'
+  - 'eval "$(starship init bash)"'

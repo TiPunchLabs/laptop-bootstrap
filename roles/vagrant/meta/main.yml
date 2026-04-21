@@ -1,0 +1,17 @@
+---
+galaxy_info:
+  author: xgueret
+  description: Install Vagrant with libvirt provider and vagrant-libvirt plugin
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - jammy
+        - noble
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+
+dependencies: []

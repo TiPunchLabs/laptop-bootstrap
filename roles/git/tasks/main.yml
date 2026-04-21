@@ -13,7 +13,7 @@
 - name: Apply user git configuration
   ansible.builtin.template:
     src: user_gitconfig.j2
-    dest: "/home/{{ local_user }}/.gitconfig"
-    owner: "{{ local_user }}"
-    group: "{{ local_user }}"
+    dest: "/home/{{ bootstrap_local_user }}/.gitconfig"
+    owner: "{{ bootstrap_local_user }}"
+    group: "{{ bootstrap_local_user }}"
     mode: "0644"

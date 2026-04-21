@@ -1,8 +1,0 @@
----
-# AWS CLI v2 configuration
-devops_awscli_install_dir: /usr/local/aws-cli
-devops_awscli_bin_dir: /usr/local/bin
-devops_awscli_tmp_dir: /tmp/awscli
-
-# GitHub API URL for AWS CLI releases
-devops_awscli_github_api: https://api.github.com/repos/aws/aws-cli/tags

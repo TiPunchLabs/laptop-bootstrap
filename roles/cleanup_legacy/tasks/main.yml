@@ -1,0 +1,31 @@
+---
+- name: Purge legacy apt packages
+  ansible.builtin.apt:
+    pkg: "{{ cleanup_legacy_apt_packages }}"
+    state: absent
+    purge: true
+
+- name: Remove legacy apt source lists
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ cleanup_legacy_apt_sources }}"
+  register: cleanup_legacy_sources_removed
+
+- name: Remove legacy apt GPG keyrings
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ cleanup_legacy_apt_keyrings }}"
+  register: cleanup_legacy_keyrings_removed
+
+- name: Refresh apt cache after source cleanup
+  ansible.builtin.apt:
+    update_cache: true
+  when: cleanup_legacy_sources_removed.changed or cleanup_legacy_keyrings_removed.changed
+
+- name: Remove legacy binaries and directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ cleanup_legacy_paths + cleanup_legacy_user_paths }}"

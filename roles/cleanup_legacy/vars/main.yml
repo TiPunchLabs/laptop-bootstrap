@@ -1,0 +1,26 @@
+---
+# Tools superseded by mise — see ADR-0001. Purge is idempotent; safe on clean systems.
+cleanup_legacy_apt_packages:
+  - fzf
+  - bat
+  - direnv
+  - eza
+  - kubectl
+  - terraform
+
+# HashiCorp sources/keyring stay — still used by the vagrant role.
+cleanup_legacy_apt_sources:
+  - /etc/apt/sources.list.d/kubernetes.list
+
+cleanup_legacy_apt_keyrings:
+  - /usr/share/keyrings/kubernetes-apt-keyring.gpg
+
+cleanup_legacy_paths:
+  - /usr/local/bin/starship
+  - /usr/local/bin/aws
+  - /usr/local/bin/aws_completer
+  - /usr/local/bin/kubectl-convert
+  - /usr/local/aws-cli
+
+cleanup_legacy_user_paths:
+  - "/home/{{ bootstrap_local_user }}/.local/bin/uv"
