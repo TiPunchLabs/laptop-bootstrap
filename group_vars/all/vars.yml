@@ -1,0 +1,11 @@
+---
+# Public aliases for vault-backed variables. Roles and tasks should reference
+# the public names (no prefix), never the `vault_*` ones directly. The
+# `| default(...)` fallbacks keep the playbook runnable when the vault file
+# is absent (e.g. the smoke-test harness excludes it from rsync).
+#
+# See group_vars/all/vault/main.yml for the encrypted values.
+
+desired_hostname: "{{ vault_desired_hostname | default('localhost') }}"
+git_user_email: "{{ vault_git_user_email | default('myemail@example.com') }}"
+git_user_name: "{{ vault_git_user_name | default('myname') }}"
