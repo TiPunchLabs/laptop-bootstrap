@@ -42,12 +42,12 @@
   when: cli_tools_mise_config.changed or (cli_tools_mise_ls.stdout | default('[]', true) | from_json | length) < (cli_tools_mise_tools | length)
   changed_when: true
 
-- name: Add mise activation + starship init to .bashrc
-  ansible.builtin.lineinfile:
+- name: Install managed shell-hooks block in .bashrc
+  ansible.builtin.blockinfile:
     path: "/home/{{ bootstrap_local_user }}/.bashrc"
-    line: "{{ item }}"
-    state: present
+    marker: "{{ cli_tools_bashrc_marker }}"
+    insertbefore: "{{ cli_tools_bashrc_insert_before }}"
+    block: "{{ cli_tools_bashrc_block }}"
     create: true
     mode: '0644'
   become_user: "{{ bootstrap_local_user }}"
-  loop: "{{ cli_tools_bashrc_lines }}"
