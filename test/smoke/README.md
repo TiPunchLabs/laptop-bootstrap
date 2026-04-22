@@ -31,3 +31,15 @@ vagrant provision  # re-run ansible without reboot
 The `vagrant` role installs libvirt + vagrant inside the VM. Running this inside a libvirt-hosted VM requires nested virtualization, which is fragile. Keep it skipped unless explicitly testing the vagrant role.
 
 See [`docs/guide-smoke-test-vagrant.md`](../../docs/guide-smoke-test-vagrant.md) for the full walkthrough.
+
+## Post-provision assertions
+
+After `vagrant up` completes, verify the managed shell-hooks block is in place:
+
+```sh
+vagrant ssh -c "grep -c 'ANSIBLE MANAGED: cli_tools shell hooks' ~/.bashrc"
+# Expected: 2  (one BEGIN marker, one END marker)
+
+vagrant ssh -c "sed -n '/BEGIN ANSIBLE MANAGED: cli_tools/,/END ANSIBLE MANAGED: cli_tools/p' ~/.bashrc"
+# Expected: three eval lines in order — mise activate, starship init, direnv hook
+```

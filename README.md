@@ -148,6 +148,18 @@ exec bash   # reload PATH so mise shims take precedence over /usr/local/bin
 
 > 💡 **Note on `exec bash`** — `cli_tools` adds `eval "$(mise activate bash)"` to `~/.bashrc`, but the current shell only picks it up after re-reading the file. Without `exec bash` (or opening a new terminal), `which kubectl` may still resolve to the old `/usr/local/bin/kubectl` binary instead of the mise shim.
 
+### Manual `.bashrc` cleanup (one-time)
+
+`cli_tools` now installs its shell hooks as a marker-bounded block. If your `.bashrc` already contains standalone copies from pre-mise installs, the role does **not** auto-remove them (doing so would corrupt the managed block on subsequent runs — see the design note in `docs/superpowers/specs/2026-04-21-cli-tools-shell-hooks-design.md`). Delete these literal lines by hand, once per laptop:
+
+```sh
+# Lines to remove from ~/.bashrc if present outside the `ANSIBLE MANAGED` block:
+eval "$(starship init bash)"
+eval "$(direnv hook bash)"
+```
+
+After deletion, re-run `uv run ansible-playbook playbook.yml --tags cli-tools` to regenerate a clean block.
+
 ## Security & Code Quality
 
 The project uses `pre-commit` to enforce code quality and security checks.
