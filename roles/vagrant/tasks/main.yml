@@ -25,11 +25,13 @@
   ansible.builtin.command: vagrant plugin list
   register: vagrant_plugin_list
   changed_when: false
+  become: true
   become_user: "{{ bootstrap_local_user }}"
 
 - name: Install the vagrant-libvirt plugin
   ansible.builtin.command:
     cmd: vagrant plugin install vagrant-libvirt
+  become: true
   become_user: "{{ bootstrap_local_user }}"
   when: "'vagrant-libvirt' not in vagrant_plugin_list.stdout"
   changed_when: true
