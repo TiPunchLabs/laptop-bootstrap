@@ -6,6 +6,7 @@
     creates: "{{ cli_tools_mise_bin }}"
   environment:
     HOME: "/home/{{ bootstrap_local_user }}"
+  become: true
   become_user: "{{ bootstrap_local_user }}"
 
 - name: Ensure mise config directory exists
@@ -29,6 +30,7 @@
   ansible.builtin.command: "{{ cli_tools_mise_bin }} ls --current --json"
   environment:
     HOME: "/home/{{ bootstrap_local_user }}"
+  become: true
   become_user: "{{ bootstrap_local_user }}"
   register: cli_tools_mise_ls
   changed_when: false
@@ -38,6 +40,7 @@
     cmd: "{{ cli_tools_mise_bin }} install --yes"
   environment:
     HOME: "/home/{{ bootstrap_local_user }}"
+  become: true
   become_user: "{{ bootstrap_local_user }}"
   when: cli_tools_mise_config.changed or (cli_tools_mise_ls.stdout | default('[]', true) | from_json | length) < (cli_tools_mise_tools | length)
   changed_when: true
@@ -55,4 +58,5 @@
     block: "{{ cli_tools_bashrc_block }}"
     create: true
     mode: '0644'
+  become: true
   become_user: "{{ bootstrap_local_user }}"

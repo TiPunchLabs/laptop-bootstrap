@@ -35,5 +35,6 @@
     path: "/home/{{ bootstrap_local_user }}/.bashrc"
     line: "{{ item }}"
     state: absent
+  become: true
   become_user: "{{ bootstrap_local_user }}"
   loop: "{{ cleanup_legacy_bashrc_lines }}"
