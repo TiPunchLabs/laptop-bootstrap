@@ -29,12 +29,3 @@ cli_tools_bashrc_block: |
   eval "$(~/.local/bin/mise activate bash)"
   eval "$(starship init bash)"
   eval "$(direnv hook bash)"
-
-cli_tools_bashrc_marker: "# {mark} ANSIBLE MANAGED: cli_tools shell hooks"
-
-# Anchor = the first `HISTCONTROL=` line (Ubuntu default, ~line 13, right after
-# the interactive-shell guard). Using `insertbefore` gives first-match semantics
-# (whereas `insertafter` would pick the LAST `esac` and land the block at the
-# bottom of the file, defeating the ordering fix). If no HISTCONTROL line
-# exists, blockinfile falls back to EOF — still correct in isolation.
-cli_tools_bashrc_insert_before: '^HISTCONTROL='

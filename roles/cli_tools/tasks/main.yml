@@ -45,8 +45,13 @@
 - name: Install managed shell-hooks block in .bashrc
   ansible.builtin.blockinfile:
     path: "/home/{{ bootstrap_local_user }}/.bashrc"
-    marker: "{{ cli_tools_bashrc_marker }}"
-    insertbefore: "{{ cli_tools_bashrc_insert_before }}"
+    marker: "# {mark} ANSIBLE MANAGED: cli_tools shell hooks"
+    # insertbefore uses first-match; insertafter picks the LAST match, which
+    # on a populated bashrc lands after every function-local `esac`, at EOF.
+    # Anchor on HISTCONTROL (Ubuntu default, just after the interactive-shell
+    # guard) so the block runs before any other tool hooks. Missing anchor
+    # falls back to EOF — still correct in isolation.
+    insertbefore: '^HISTCONTROL='
     block: "{{ cli_tools_bashrc_block }}"
     create: true
     mode: '0644'
