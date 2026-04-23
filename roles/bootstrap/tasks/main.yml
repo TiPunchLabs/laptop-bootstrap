@@ -43,13 +43,6 @@
   ansible.builtin.include_tasks:
     file: update_hosts.yml
 
-- name: Install package from deb
-  ansible.builtin.include_tasks:
-    file: install_from_deb.yml
-  loop: "{{ bootstrap_deb_packages }}"
-  loop_control:
-    loop_var: deb_package
-
 - name: Detect dpkg architecture (e.g., amd64, arm64)
   ansible.builtin.command: dpkg --print-architecture
   register: bootstrap_dpkg_arch
