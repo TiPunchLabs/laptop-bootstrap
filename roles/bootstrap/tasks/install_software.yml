@@ -124,13 +124,21 @@
     path: "/etc/apt/sources.list.d/{{ software.name }}.list"
     state: absent
 
-- name: Write Deb822 source file
-  ansible.builtin.template:
-    src: apt-source.sources.j2
-    dest: "/etc/apt/sources.list.d/{{ software.name }}.sources"
-    mode: "0644"
-  vars:
-    signed_by_path: "{{ bootstrap_key_gpg_path }}"
+# deb822_repository writes /etc/apt/sources.list.d/{{ name }}.sources with
+# the canonical format expected by apt. `append_arch_to_uri` (used by
+# nvidia-container-toolkit) is rendered into the URI here so the module
+# keeps seeing the same value across runs.
+- name: Configure apt source (deb822)
+  ansible.builtin.deb822_repository:
+    name: "{{ software.name }}"
+    types: deb
+    uris: >-
+      {{ (software.deb822.uris | trim).rstrip('/') }}{% if software.deb822.append_arch_to_uri | default(false) %}/{{ bootstrap_apt_arch }}{% endif %}/
+    suites: "{{ software.deb822.suites }}"
+    components: "{{ software.deb822.components | default(omit) }}"
+    architectures: "{{ software.deb822.architectures | default(omit) }}"
+    signed_by: "{{ bootstrap_key_gpg_path }}"
+    state: present
   notify: Update apt cache
 
 # ——— Install package ———
