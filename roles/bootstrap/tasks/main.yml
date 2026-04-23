@@ -69,24 +69,36 @@
 - name: Install vagrant + libvirt
   ansible.builtin.include_role:
     name: vagrant
+    apply:
+      tags:
+        - vagrant
   tags:
     - vagrant
 
 - name: Install And Configure Git
   ansible.builtin.include_role:
     name: git
+    apply:
+      tags:
+        - git
   tags:
     - git
 
 - name: Install Docker
   ansible.builtin.include_role:
     name: docker
+    apply:
+      tags:
+        - docker
   tags:
     - docker
 
 - name: Install devtools
   ansible.builtin.include_role:
     name: devtools
+    apply:
+      tags:
+        - devtools
   tags:
     - devtools
 
