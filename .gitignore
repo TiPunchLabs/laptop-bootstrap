@@ -51,3 +51,6 @@ Thumbs.db
 
 # Vagrant runtime state (VM id, SSH config, etc.)
 .vagrant/
+
+# Claude Code per-user allowlist (team-shared config goes in settings.json)
+.claude/settings.local.json
