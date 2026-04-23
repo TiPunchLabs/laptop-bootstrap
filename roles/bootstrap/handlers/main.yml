@@ -1,12 +1,4 @@
 ---
-- name: Apply the changes to .bashrc
-  ansible.builtin.shell: source /home/{{ bootstrap_local_user }}/.bashrc
-  args:
-    executable: /bin/bash
-  become_user: "{{ bootstrap_local_user }}"
-  when: bootstrap_local_user != 'root'
-  changed_when: false
-
 - name: Update apt cache
   ansible.builtin.apt:
     update_cache: true
