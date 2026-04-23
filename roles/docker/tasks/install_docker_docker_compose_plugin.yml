@@ -25,19 +25,40 @@
     path: "{{ docker_gpg.path }}"
   register: docker_key_exists
 
-- name: Download Docker’s official GPG key
+- name: Download Docker official GPG key (ASCII)
   ansible.builtin.get_url:
     url: "{{ docker_gpg.url }}"
-    dest: "{{ docker_gpg.tmp_path }}"
+    dest: "{{ docker_gpg.path }}.asc"
     mode: '0644'
   when: docker_gpg.url is defined and not docker_key_exists.stat.exists
 
-- name: Add GPG key for Docker
-  ansible.builtin.command: >
-    gpg --dearmor -o {{ docker_gpg.path }} {{ docker_gpg.tmp_path }}
+# Dearmor to a staging file then rename into place — see the same
+# pattern in roles/bootstrap/tasks/install_software.yml for the
+# motivation (partial-write recovery).
+- name: Dearmor Docker key to staging file (.new)
+  ansible.builtin.command:
+    cmd: "gpg --batch --yes --dearmor -o {{ docker_gpg.path }}.new {{ docker_gpg.path }}.asc"
   args:
     creates: "{{ docker_gpg.path }}"
+  register: docker_dearmor
   when: docker_gpg.url is defined and not docker_key_exists.stat.exists
+
+- name: Atomically move dearmored Docker key into place  # noqa: no-handler
+  ansible.builtin.copy:
+    src: "{{ docker_gpg.path }}.new"
+    dest: "{{ docker_gpg.path }}"
+    remote_src: true
+    mode: '0644'
+  when: docker_dearmor is changed
+
+- name: Cleanup Docker dearmor staging and .asc files  # noqa: no-handler
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "{{ docker_gpg.path }}.new"
+    - "{{ docker_gpg.path }}.asc"
+  when: docker_dearmor is changed
 
 - name: Set up the Docker repository
   ansible.builtin.apt_repository:
