@@ -35,12 +35,36 @@
     - software.key_format | lower == "ascii"
     - not bootstrap_keyring_stat.stat.exists
 
-- name: Dearmor ASCII key -> keyring (.gpg)
+# Write the dearmored output to a staging file next to the final path,
+# then rename into place. A direct `gpg --dearmor -o <target>` can leave
+# a corrupted file if the process is interrupted mid-write; the target
+# would still exist, `creates:` would skip subsequent runs, and apt
+# would fail at the next source refresh.
+- name: Dearmor ASCII key to staging file (.new)
   ansible.builtin.command:
-    cmd: "gpg --dearmor -o {{ bootstrap_key_gpg_path }} {{ bootstrap_key_asc_path }}"
+    cmd: "gpg --batch --yes --dearmor -o {{ bootstrap_key_gpg_path }}.new {{ bootstrap_key_asc_path }}"
   args:
     creates: "{{ bootstrap_key_gpg_path }}"
+  register: bootstrap_dearmor
   when: software.key_format | lower == "ascii"
+
+- name: Atomically move dearmored key into place
+  ansible.builtin.copy:
+    src: "{{ bootstrap_key_gpg_path }}.new"
+    dest: "{{ bootstrap_key_gpg_path }}"
+    remote_src: true
+    mode: "0644"
+  when:
+    - software.key_format | lower == "ascii"
+    - bootstrap_dearmor is changed
+
+- name: Cleanup dearmor staging file
+  ansible.builtin.file:
+    path: "{{ bootstrap_key_gpg_path }}.new"
+    state: absent
+  when:
+    - software.key_format | lower == "ascii"
+    - bootstrap_dearmor is changed
 
 
 # ——— (facultatif mais conseillé) s'assurer que gpg est dispo ———
