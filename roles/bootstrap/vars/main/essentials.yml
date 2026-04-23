@@ -22,3 +22,4 @@ bootstrap_packages:
   - python3-argcomplete
   - kubetail
   - imagemagick
+  - python3-debian  # required by ansible.builtin.deb822_repository
