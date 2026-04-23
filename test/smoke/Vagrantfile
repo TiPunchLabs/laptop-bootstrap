@@ -63,9 +63,6 @@ Vagrant.configure("2") do |config|
     # (myemail@example.com / myname) — no stub needed for a smoke run.
     a.extra_vars = {
       vault_desired_hostname: "laptop-bootstrap-smoke",
-      # Skip GUI .deb installs (VS Code etc.) — they pull in libasound2 and
-      # other desktop libraries that make no sense on a headless smoke VM.
-      bootstrap_deb_packages: [],
     }
   end
 end

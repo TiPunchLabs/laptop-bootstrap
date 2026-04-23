@@ -38,3 +38,13 @@ bootstrap_software_list:
       uris: "https://dbeaver.io/debs/dbeaver-ce"
       suites: "/"
       architectures: ["{{ bootstrap_apt_arch }}"]
+
+  - name: "vscode"
+    package: "code"
+    key_url: "https://packages.microsoft.com/keys/microsoft.asc"
+    key_format: "ascii"
+    deb822:
+      uris: "https://packages.microsoft.com/repos/code"
+      suites: "stable"
+      components: ["main"]
+      architectures: ["{{ bootstrap_apt_arch }}"]
