@@ -41,8 +41,6 @@ This project uses Ansible to automate the installation and configuration of a la
 │   ├── outputs.tf
 │   ├── providers.tf
 │   └── variables.tf
-├── img
-│   └── local_laptop.png
 ├── inventory.yml
 ├── playbook.yml
 ├── pyproject.toml
