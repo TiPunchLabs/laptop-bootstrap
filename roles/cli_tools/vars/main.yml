@@ -23,8 +23,9 @@ cli_tools_mise_tools:
   terraform: latest
   awscli: latest
 
-# Shell hooks to append to .bashrc (mise activate must come first — it puts tool
-# shims on PATH, so `starship init bash` can resolve the mise-managed binary)
-cli_tools_bashrc_lines:
-  - 'eval "$(~/.local/bin/mise activate bash)"'
-  - 'eval "$(starship init bash)"'
+# Shell hooks managed as an ordered, atomic block in ~/.bashrc. mise must come
+# first so starship/direnv can resolve mise-managed binaries on PATH.
+cli_tools_bashrc_block: |
+  eval "$(~/.local/bin/mise activate bash)"
+  eval "$(starship init bash)"
+  eval "$(direnv hook bash)"

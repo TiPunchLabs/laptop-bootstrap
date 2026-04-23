@@ -42,12 +42,17 @@
   when: cli_tools_mise_config.changed or (cli_tools_mise_ls.stdout | default('[]', true) | from_json | length) < (cli_tools_mise_tools | length)
   changed_when: true
 
-- name: Add mise activation + starship init to .bashrc
-  ansible.builtin.lineinfile:
+- name: Install managed shell-hooks block in .bashrc
+  ansible.builtin.blockinfile:
     path: "/home/{{ bootstrap_local_user }}/.bashrc"
-    line: "{{ item }}"
-    state: present
+    marker: "# {mark} ANSIBLE MANAGED: cli_tools shell hooks"
+    # insertbefore uses first-match; insertafter picks the LAST match, which
+    # on a populated bashrc lands after every function-local `esac`, at EOF.
+    # Anchor on HISTCONTROL (Ubuntu default, just after the interactive-shell
+    # guard) so the block runs before any other tool hooks. Missing anchor
+    # falls back to EOF — still correct in isolation.
+    insertbefore: '^HISTCONTROL='
+    block: "{{ cli_tools_bashrc_block }}"
     create: true
     mode: '0644'
   become_user: "{{ bootstrap_local_user }}"
-  loop: "{{ cli_tools_bashrc_lines }}"

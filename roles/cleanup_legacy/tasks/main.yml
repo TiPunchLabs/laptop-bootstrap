@@ -29,3 +29,11 @@
     path: "{{ item }}"
     state: absent
   loop: "{{ cleanup_legacy_paths + cleanup_legacy_user_paths }}"
+
+- name: Strip orphan bashrc lines left by pre-mise installs
+  ansible.builtin.lineinfile:
+    path: "/home/{{ bootstrap_local_user }}/.bashrc"
+    line: "{{ item }}"
+    state: absent
+  become_user: "{{ bootstrap_local_user }}"
+  loop: "{{ cleanup_legacy_bashrc_lines }}"

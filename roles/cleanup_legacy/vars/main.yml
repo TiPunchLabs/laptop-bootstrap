@@ -24,3 +24,12 @@ cleanup_legacy_paths:
 
 cleanup_legacy_user_paths:
   - "/home/{{ bootstrap_local_user }}/.local/bin/uv"
+
+# Orphan bashrc lines left by pre-mise installs. MUST NOT overlap with
+# cli_tools_bashrc_block content (e.g., do NOT list `eval "$(starship init bash)"`
+# here) — lineinfile: state=absent would then strip the block's lines every run
+# and produce false "changed" events forever.
+cleanup_legacy_bashrc_lines:
+  - 'complete -C /usr/bin/terraform terraform'
+  - 'source /usr/share/doc/fzf/examples/key-bindings.bash'
+  - 'source /usr/share/doc/fzf/examples/completion.bash'
