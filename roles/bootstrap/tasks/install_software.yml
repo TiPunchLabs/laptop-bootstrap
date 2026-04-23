@@ -51,12 +51,29 @@
   become: true
 
 # ——— Ré-export de la clé pour compat APT ———
+# Skip the whole re-export dance if the target keyring already holds
+# exactly the expected key_id — otherwise every run re-creates a temp
+# GNUPG home, re-imports, re-exports and wipes the tempdir, which shows
+# up as 4 spurious `changed` tasks on each replay.
+- name: Probe target keyring for expected key_id
+  ansible.builtin.command:
+    cmd: >
+      gpg --no-default-keyring
+          --keyring {{ bootstrap_key_gpg_path }}
+          --list-keys {{ software.key_id }}
+  register: bootstrap_keyring_probe
+  changed_when: false
+  failed_when: false
+  when: software.key_id is defined
+
 - name: Create temporary GNUPG home
   ansible.builtin.tempfile:
     state: directory
     suffix: _gnupg
   register: bootstrap_gpg_tmp
-  when: software.key_id is defined
+  when:
+    - software.key_id is defined
+    - bootstrap_keyring_probe.rc | default(1) != 0
 
 # On importe ce qu'on a déjà (le .gpg dearmored) dans un trousseau temporaire
 - name: Import current key into temp keyring
