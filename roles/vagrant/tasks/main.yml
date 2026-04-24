@@ -10,11 +10,24 @@
     executable: /bin/bash
     creates: "{{ vagrant_hashicorp_gpg.key_path }}"
 
-- name: Add HashiCorp apt repository
-  ansible.builtin.apt_repository:
-    repo: "{{ vagrant_hashicorp_gpg.repo }}"
-    filename: hashicorp
+- name: Remove legacy hashicorp.list (if any) to avoid conflicts
+  ansible.builtin.file:
+    path: /etc/apt/sources.list.d/hashicorp.list
+    state: absent
+
+- name: Configure HashiCorp apt source (deb822)
+  ansible.builtin.deb822_repository:
+    name: hashicorp
+    types: deb
+    uris: "{{ vagrant_hashicorp_deb822.uris }}"
+    suites: "{{ vagrant_hashicorp_deb822.suites }}"
+    components: "{{ vagrant_hashicorp_deb822.components }}"
+    signed_by: "{{ vagrant_hashicorp_gpg.key_path }}"
     state: present
+  notify: Update apt cache
+
+- name: Refresh apt cache now so the install step sees the new source
+  ansible.builtin.meta: flush_handlers
 
 - name: Install vagrant and libvirt dependencies
   ansible.builtin.apt:
