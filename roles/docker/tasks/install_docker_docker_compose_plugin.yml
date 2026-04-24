@@ -60,12 +60,25 @@
     - "{{ docker_gpg.path }}.asc"
   when: docker_dearmor is changed
 
-- name: Set up the Docker repository
-  ansible.builtin.apt_repository:
-    repo: "{{ docker_gpg.repo }}"
-    filename: "docker"
+- name: Remove legacy docker.list (if any) to avoid conflicts
+  ansible.builtin.file:
+    path: /etc/apt/sources.list.d/docker.list
+    state: absent
+
+- name: Configure Docker apt source (deb822)
+  ansible.builtin.deb822_repository:
+    name: docker
+    types: deb
+    uris: "{{ docker_deb822.uris }}"
+    suites: "{{ docker_deb822.suites }}"
+    components: "{{ docker_deb822.components }}"
+    architectures: "{{ docker_deb822.architectures }}"
+    signed_by: "{{ docker_gpg.path }}"
     state: present
-    update_cache: true
+  notify: Update apt cache
+
+- name: Refresh apt cache now so the install step sees the new source
+  ansible.builtin.meta: flush_handlers
 
 - name: Install Docker Engine
   ansible.builtin.apt:

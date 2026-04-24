@@ -2,4 +2,9 @@
 docker_gpg:
   path: /usr/share/keyrings/docker-archive-keyring.gpg
   url: https://download.docker.com/linux/ubuntu/gpg
-  repo: "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu {{ ansible_facts['lsb']['codename'] }} stable"
+
+docker_deb822:
+  uris: https://download.docker.com/linux/ubuntu
+  suites: "{{ ansible_facts['lsb']['codename'] }}"
+  components: ["stable"]
+  architectures: ["amd64"]

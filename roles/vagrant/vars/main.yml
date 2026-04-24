@@ -2,7 +2,11 @@
 vagrant_hashicorp_gpg:
   key_path: /usr/share/keyrings/hashicorp-archive-keyring.gpg
   key_url: https://apt.releases.hashicorp.com/gpg
-  repo: "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com {{ ansible_facts['distribution_release'] }} main"
+
+vagrant_hashicorp_deb822:
+  uris: https://apt.releases.hashicorp.com
+  suites: "{{ ansible_facts['distribution_release'] }}"
+  components: ["main"]
 
 vagrant_packages:
   - vagrant
