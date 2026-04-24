@@ -164,12 +164,3 @@
     signed_by: "{{ bootstrap_key_gpg_path }}"
     state: present
   notify: Update apt cache
-
-# ——— Install package ———
-- name: Force apt cache update now (if template changed)
-  ansible.builtin.meta: flush_handlers
-
-- name: Install package
-  ansible.builtin.apt:
-    name: "{{ software.package }}"
-    state: present
