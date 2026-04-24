@@ -52,12 +52,23 @@
   ansible.builtin.set_fact:
     bootstrap_apt_arch: "{{ bootstrap_dpkg_arch.stdout | trim }}"
 
-- name: Install software
+- name: Configure apt sources for bootstrap software
   ansible.builtin.include_tasks:
     file: install_software.yml
   loop: "{{ bootstrap_software_list }}"
   loop_control:
     loop_var: software
+
+# Hoisted out of the per-entry loop above: flush once so apt sees every new
+# source in a single cache refresh, then install the full batch in one apt
+# transaction instead of N.
+- name: Refresh apt cache after all bootstrap sources are configured
+  ansible.builtin.meta: flush_handlers
+
+- name: Install bootstrap software packages
+  ansible.builtin.apt:
+    name: "{{ bootstrap_software_list | map(attribute='package') | list }}"
+    state: present
 
 - name: Install vagrant + libvirt
   ansible.builtin.include_role:
