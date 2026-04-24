@@ -26,8 +26,12 @@
     mode: '0644'
   register: cli_tools_mise_config
 
-- name: List currently installed mise tools
-  ansible.builtin.command: "{{ cli_tools_mise_bin }} ls --current --json"
+# --installed (not --current) so the key set reflects what's physically on
+# disk, independent of what the active config declares. --current would
+# list any config entry even when the tool is absent from disk, breaking
+# the missing-tools detection below.
+- name: List mise tools physically installed
+  ansible.builtin.command: "{{ cli_tools_mise_bin }} ls --installed --json"
   environment:
     HOME: "/home/{{ bootstrap_local_user }}"
   become: true
@@ -35,14 +39,38 @@
   register: cli_tools_mise_ls
   changed_when: false
 
-- name: Install/update all tools declared in mise config
+# Set-diff on declared vs installed tool names. `mise ls --current --json`
+# returns {tool: [version_info,...]} — we only need the key set here. This
+# detects *both* additions (missing) and removals (extras); the old
+# count-based gate only caught additions, so dropping a tool from
+# cli_tools_mise_tools would leave it installed forever.
+- name: Compute declared vs installed mise tool sets
+  ansible.builtin.set_fact:
+    cli_tools_mise_missing: >-
+      {{ (cli_tools_mise_tools.keys() | list)
+         | difference((cli_tools_mise_ls.stdout | default('{}', true) | from_json).keys() | list) }}
+    cli_tools_mise_extras: >-
+      {{ ((cli_tools_mise_ls.stdout | default('{}', true) | from_json).keys() | list)
+         | difference(cli_tools_mise_tools.keys() | list) }}
+
+- name: Install/update tools declared in mise config
   ansible.builtin.command:
     cmd: "{{ cli_tools_mise_bin }} install --yes"
   environment:
     HOME: "/home/{{ bootstrap_local_user }}"
   become: true
   become_user: "{{ bootstrap_local_user }}"
-  when: cli_tools_mise_config.changed or (cli_tools_mise_ls.stdout | default('[]', true) | from_json | length) < (cli_tools_mise_tools | length)
+  when: cli_tools_mise_config.changed or cli_tools_mise_missing | length > 0
+  changed_when: true
+
+- name: Prune tools no longer declared in mise config
+  ansible.builtin.command:
+    cmd: "{{ cli_tools_mise_bin }} uninstall --all {{ item }}"
+  environment:
+    HOME: "/home/{{ bootstrap_local_user }}"
+  become: true
+  become_user: "{{ bootstrap_local_user }}"
+  loop: "{{ cli_tools_mise_extras }}"
   changed_when: true
 
 - name: Install managed shell-hooks block in .bashrc
