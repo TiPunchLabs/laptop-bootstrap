@@ -9,56 +9,53 @@ This project uses Ansible to automate the installation and configuration of a la
 - `ansible.cfg`: Global Ansible configuration
 - `inventory.yml`: Defines hosts and groups for Ansible
 - `playbook.yml`: Main playbook orchestrating the role execution
+- `Makefile`: Daily-use targets (`make help` to discover them)
 - `bin/`: Shell scripts
   - `local_laptop.sh`: Bootstrap script to run the playbook
-  - `ansible-vault-pass.sh`: Vault password helper
+  - `ansible-vault-pass.sh`: Vault password helper (reads from `pass`)
   - `check_ansible_vault.sh`: Pre-commit hook for vault encryption
   - `add-yaml-document-start.sh`: Pre-commit hook for YAML formatting
-- `roles/`: Contains various Ansible roles
-  - `bootstrap/`: Main role for laptop installation and configuration (orchestrates other roles)
-  - `cli_tools/`: Unified CLI tool manager via [mise](https://mise.jdx.dev/) — installs uv, fzf, direnv, zoxide, eza, bat, chezmoi, starship, kubectl, terraform, awscli
+- `roles/`: Contains the Ansible roles
+  - `bootstrap/`: Entry-point role that orchestrates the others; owns the apt sources for vendor packages (`bootstrap_software_list`, deb822)
+  - `cli_tools/`: Unified CLI tool manager via [mise](https://mise.jdx.dev/) — installs uv, fzf, direnv, zoxide, eza, bat, chezmoi, starship, kubectl, terraform, awscli; manages an atomic `~/.bashrc` block
   - `cleanup_legacy/`: Removes pre-migration apt packages / binaries / repos superseded by mise
-  - `devtools/`: Development tools installation (e.g., Postman)
-  - `docker/`: Docker and Docker Compose installation
+  - `devtools/`: Development tools (Postman, etc.)
+  - `docker/`: Docker engine + compose plugin (deb822 source, atomic GPG dearmor)
   - `git/`: Git configuration
-  - `vagrant/`: Vagrant + libvirt + vagrant-libvirt plugin (kept system-managed per ADR-0001)
-- `github/`: Terraform configuration for GitHub resources (from [TiPunchLabs](https://github.com/TiPunchLabs) project)
+  - `vagrant/`: Vagrant + libvirt + vagrant-libvirt plugin (system-managed per ADR-0001)
+- `test/smoke/`: Vagrant + libvirt smoke harness for replaying the playbook on a clean VM
+- `docs/`:
+  - `guide-daily-usage.md`: End-to-end day-to-day workflow
+  - `guide-smoke-test-vagrant.md`: Smoke-test walkthrough
+  - `adr/`: Architecture Decision Records
+  - `superpowers/specs/`: Approved design docs for non-trivial role changes
+- `github/`, `terraform/`: Terraform configuration for GitHub resources (TiPunchLabs)
 
 ```
 .
 ├── ansible.cfg
 ├── .envrc
-├── group_vars
-│   └── all
-├── github
-│   ├── data_sources.tf
-│   ├── main.tf
-│   ├── outputs.tf
-│   ├── providers.tf
-│   └── variables.tf
-├── terraform
-│   ├── main.tf
-│   ├── outputs.tf
-│   ├── providers.tf
-│   └── variables.tf
-├── inventory.yml
+├── .pre-commit-config.yaml
+├── Makefile
 ├── playbook.yml
+├── inventory.yml
 ├── pyproject.toml
 ├── uv.lock
-├── README.md
-├── bin
-│   ├── add-yaml-document-start.sh
-│   ├── ansible-vault-pass.sh
-│   ├── check_ansible_vault.sh
-│   └── local_laptop.sh
-└── roles
-    ├── bootstrap
-    ├── cli_tools
-    ├── cleanup_legacy
-    ├── devtools
-    ├── docker
-    ├── git
-    └── vagrant
+├── README.md / CONTRIBUTING.md / SECURITY.md / CODE_OF_CONDUCT.md
+├── bin/                        # vault helper + pre-commit hook scripts
+├── group_vars/all/             # vault + clear group vars
+├── github/  ·  terraform/      # IaC for the GitHub repo + adjacent infra
+├── docs/
+│   ├── guide-daily-usage.md
+│   ├── guide-smoke-test-vagrant.md
+│   ├── adr/                    # Architecture Decision Records
+│   └── superpowers/specs/      # Approved design docs
+├── roles/
+│   ├── bootstrap/              # entry point + vendor apt sources
+│   ├── cli_tools/              # mise-managed user CLI tools + shell hooks block
+│   ├── cleanup_legacy/         # pre-mise eviction
+│   ├── devtools/  ·  docker/  ·  git/  ·  vagrant/
+└── test/smoke/                 # Vagrant + libvirt replay harness
 ```
 
 ## Prerequisites
@@ -103,21 +100,22 @@ export ANSIBLE_VAULT_PASSWORD=$(pass ansible/vault)
 
 ### 4. Run the Playbook
 
-```sh
-./bin/local_laptop.sh
-```
-
-Or with a specific tag:
+The Makefile is the recommended entry point — `make help` lists every target:
 
 ```sh
-./bin/local_laptop.sh update
+make play                       # full playbook
+make play-cli-tools             # only the cli_tools role
+make play TAGS=docker,git       # arbitrary tag combination
 ```
 
-Or directly with ansible-playbook:
+Equivalent low-level invocation:
 
 ```sh
-uv run ansible-playbook playbook.yml --tags update
+uv run ansible-playbook -i inventory.yml playbook.yml --tags update
+./bin/local_laptop.sh update    # legacy wrapper, same effect
 ```
+
+For the daily edit → verify → ship loop, see [`docs/guide-daily-usage.md`](docs/guide-daily-usage.md).
 
 ## Available Tags
 
@@ -148,15 +146,16 @@ exec bash   # reload PATH so mise shims take precedence over /usr/local/bin
 
 ### Manual `.bashrc` cleanup (one-time)
 
-`cli_tools` now installs its shell hooks as a marker-bounded block. If your `.bashrc` already contains standalone copies from pre-mise installs, the role does **not** auto-remove them (doing so would corrupt the managed block on subsequent runs — see the design note in `docs/superpowers/specs/2026-04-21-cli-tools-shell-hooks-design.md`). Delete these literal lines by hand, once per laptop:
+`cli_tools` installs its shell hooks as a marker-bounded block (`ANSIBLE MANAGED: cli_tools shell hooks`). If your `.bashrc` already contains standalone copies from pre-mise installs, the role does **not** auto-remove them (doing so would corrupt the managed block on subsequent runs — see the design note in [`docs/superpowers/specs/2026-04-21-cli-tools-shell-hooks-design.md`](docs/superpowers/specs/2026-04-21-cli-tools-shell-hooks-design.md)). Delete these literal lines by hand, once per laptop:
 
 ```sh
 # Lines to remove from ~/.bashrc if present outside the `ANSIBLE MANAGED` block:
+eval "$(~/.local/bin/mise activate bash)"
 eval "$(starship init bash)"
 eval "$(direnv hook bash)"
 ```
 
-After deletion, re-run `uv run ansible-playbook playbook.yml --tags cli-tools` to regenerate a clean block.
+After deletion, re-run `make play-cli-tools` to regenerate a clean managed block.
 
 ## Security & Code Quality
 
@@ -177,8 +176,13 @@ The project uses `pre-commit` to enforce code quality and security checks.
 # Install hooks (run once)
 pre-commit install
 
-# Run on all files
+# Run all hooks on all files
+make lint
+# or directly:
 pre-commit run --all-files
+
+# Run only ansible-lint (faster feedback while editing a role)
+make lint-ansible
 
 # Run a specific hook
 pre-commit run ansible-lint --all-files
@@ -198,9 +202,10 @@ See [`docs/adr/`](docs/adr/) for the list of Architecture Decision Records. Nota
 A smoke-test harness replays the playbook inside a clean Ubuntu VM via Vagrant + libvirt, so you can validate changes without touching your real laptop:
 
 ```sh
-cd test/smoke
-vagrant up         # boot VM, install ansible, run playbook
-vagrant destroy    # clean up
+make smoke-up                   # boot VM, install ansible, run playbook (~10 min first time)
+make smoke-replay               # rsync code + replay
+make smoke-replay TAGS=docker   # replay only one tag
+make smoke-down                 # clean up
 ```
 
 See [`test/smoke/README.md`](test/smoke/README.md) for the cheatsheet and [`docs/guide-smoke-test-vagrant.md`](docs/guide-smoke-test-vagrant.md) for the full walkthrough (architecture, troubleshooting, vault handling).

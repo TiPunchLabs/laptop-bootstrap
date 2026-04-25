@@ -24,7 +24,7 @@ This fragmentation causes real pain:
 - **Cleanup cost** — removing a tool means hunting down the right mechanism: apt repo file, GPG key, install-dir symlink, `~/.local/bin` binary.
 - **Per-tool Ansible boilerplate** — every new tool duplicates the same pattern (fetch latest version from GitHub API, compare, download, install). Each role reimplements version management.
 
-The draft `cli_tools` role (`docs/superpowers/plans/2026-04-17-cli-tools-role.md`) proposed combining apt + install scripts for eight tools. It improved organisation but perpetuated the same structural problem: *N* installation mechanisms for *N* tools.
+An earlier draft of `cli_tools` proposed combining apt + install scripts for eight tools. It improved organisation but perpetuated the same structural problem: *N* installation mechanisms for *N* tools.
 
 ------
 
@@ -116,4 +116,4 @@ exec bash
 ## References
 
 - mise home: <https://mise.jdx.dev/>
-- Implementation plan: `docs/superpowers/plans/2026-04-17-cli-tools-role.md`
+- Daily-usage workflow: [`docs/guide-daily-usage.md`](../guide-daily-usage.md)
