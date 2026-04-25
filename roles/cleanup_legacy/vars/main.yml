@@ -9,11 +9,18 @@ cleanup_legacy_apt_packages:
   - terraform
 
 # HashiCorp sources/keyring stay — still used by the vagrant role.
+# Chrome/Trivy `.list` files are auto-removed by install_software.yml when the
+# matching deb822 source is configured, so they don't need to appear here.
 cleanup_legacy_apt_sources:
   - /etc/apt/sources.list.d/kubernetes.list
 
+# Old keyrings under /usr/share/keyrings are no longer referenced once the
+# bootstrap role rewrites the corresponding `.sources` to point at
+# /etc/apt/keyrings/<name>.gpg.
 cleanup_legacy_apt_keyrings:
   - /usr/share/keyrings/kubernetes-apt-keyring.gpg
+  - /usr/share/keyrings/google-chrome.gpg
+  - /usr/share/keyrings/trivy.gpg
 
 cleanup_legacy_paths:
   - /usr/local/bin/starship
