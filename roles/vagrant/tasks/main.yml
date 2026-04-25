@@ -10,11 +10,6 @@
     executable: /bin/bash
     creates: "{{ vagrant_hashicorp_gpg.key_path }}"
 
-- name: Remove legacy hashicorp.list (if any) to avoid conflicts
-  ansible.builtin.file:
-    path: /etc/apt/sources.list.d/hashicorp.list
-    state: absent
-
 - name: Configure HashiCorp apt source (deb822)
   ansible.builtin.deb822_repository:
     name: hashicorp
