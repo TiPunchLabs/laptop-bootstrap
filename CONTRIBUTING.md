@@ -5,10 +5,13 @@ Thank you for your interest in contributing!
 ## How to Contribute
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+2. Create a feature branch (`git switch -c feat/amazing-feature`)
+3. Validate your change locally (see [Code Style](#code-style) and [Smoke test](#smoke-test) below)
+4. Commit your changes (`git commit -m 'feat: add amazing feature'`)
+5. Push to the branch (`git push -u origin HEAD`)
+6. Open a Pull Request
+
+For the day-to-day workflow (which file to edit, how to verify, how to ship), see [`docs/guide-daily-usage.md`](docs/guide-daily-usage.md).
 
 ## Commit Convention
 
@@ -23,9 +26,9 @@ We use [Conventional Commits](https://www.conventionalcommits.org/):
 
 ## Code Style
 
-- Run `pre-commit run --all-files` before committing
+- Run `make lint` (or `pre-commit run --all-files`) before committing
+- Use `make lint-ansible` for fast feedback while editing a role
 - Follow existing code patterns
-- Use `ansible-lint` for Ansible roles
 - Use `terraform fmt` for Terraform files
 
 ## Development Setup
@@ -43,6 +46,18 @@ uv sync && source .venv/bin/activate
 # Install pre-commit hooks
 pre-commit install
 ```
+
+## Smoke test
+
+Validate your change on a clean Ubuntu VM before sending a PR:
+
+```bash
+make smoke-up                       # one-time, ~10 min
+make smoke-replay TAGS=<your-tag>   # replay your scope
+make smoke-replay TAGS=<your-tag>   # second replay must show changed=0
+```
+
+See [`docs/guide-smoke-test-vagrant.md`](docs/guide-smoke-test-vagrant.md) for the full walkthrough.
 
 ## Questions?
 

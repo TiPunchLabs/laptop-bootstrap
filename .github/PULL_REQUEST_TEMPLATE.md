@@ -15,10 +15,9 @@ Brief description of the changes.
 
 - [ ] I have read the CONTRIBUTING guide
 - [ ] My code follows the project's style guidelines
-- [ ] I have run `pre-commit run --all-files`
-- [ ] I have tested my changes locally
+- [ ] I have run `make lint` (or `pre-commit run --all-files`)
+- [ ] I have replayed on the smoke VM (`make smoke-replay TAGS=<scope>`) and the second replay reports `changed=0`
 - [ ] I have updated the documentation if needed
-- [ ] I have updated CHANGELOG.md
 
 ## Related Issues
 
