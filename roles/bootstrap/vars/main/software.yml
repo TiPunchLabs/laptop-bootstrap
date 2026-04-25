@@ -48,3 +48,25 @@ bootstrap_software_list:
       suites: "stable"
       components: ["main"]
       architectures: ["{{ bootstrap_apt_arch }}"]
+
+  # Pinning architectures silences the i386 warning emitted by APT when the
+  # upstream `.deb` postinst writes a source without an Architectures field.
+  - name: "google-chrome"
+    package: "google-chrome-stable"
+    key_url: "https://dl.google.com/linux/linux_signing_key.pub"
+    key_format: "ascii"
+    deb822:
+      uris: "https://dl.google.com/linux/chrome/deb"
+      suites: "stable"
+      components: ["main"]
+      architectures: ["{{ bootstrap_apt_arch }}"]
+
+  - name: "trivy"
+    package: "trivy"
+    key_url: "https://aquasecurity.github.io/trivy-repo/deb/public.key"
+    key_format: "ascii"
+    deb822:
+      uris: "https://aquasecurity.github.io/trivy-repo/deb"
+      suites: "generic"
+      components: ["main"]
+      architectures: ["{{ bootstrap_apt_arch }}"]
