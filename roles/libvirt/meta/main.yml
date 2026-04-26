@@ -1,0 +1,17 @@
+---
+galaxy_info:
+  author: xgueret
+  description: Install the KVM/libvirt user stack (qemu-kvm, virt-manager, virtinst, ovmf) and configure libvirtd
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - jammy
+        - noble
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+
+dependencies: []
