@@ -24,8 +24,12 @@ cli_tools_mise_tools:
   awscli: latest
 
 # Shell hooks managed as an ordered, atomic block in ~/.bashrc. mise must come
-# first so starship/direnv can resolve mise-managed binaries on PATH.
+# first so starship/direnv/fzf can resolve mise-managed binaries on PATH.
+# `fzf --bash` (fzf >=0.48) emits key-bindings + completion inline — replaces
+# the old `source /usr/share/doc/fzf/examples/...` lines that only existed
+# under the apt package.
 cli_tools_bashrc_block: |
   eval "$(~/.local/bin/mise activate bash)"
+  eval "$(fzf --bash)"
   eval "$(starship init bash)"
   eval "$(direnv hook bash)"

@@ -41,5 +41,5 @@ vagrant ssh -c "grep -c 'ANSIBLE MANAGED: cli_tools shell hooks' ~/.bashrc"
 # Expected: 2  (one BEGIN marker, one END marker)
 
 vagrant ssh -c "sed -n '/BEGIN ANSIBLE MANAGED: cli_tools/,/END ANSIBLE MANAGED: cli_tools/p' ~/.bashrc"
-# Expected: three eval lines in order — mise activate, starship init, direnv hook
+# Expected: four eval lines in order — mise activate, fzf --bash, starship init, direnv hook
 ```
