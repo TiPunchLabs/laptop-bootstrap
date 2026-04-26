@@ -43,15 +43,3 @@
   become_user: "{{ bootstrap_local_user }}"
   when: "'vagrant-libvirt' not in vagrant_plugin_list.stdout"
   changed_when: true
-
-- name: Ensure the current user is in the libvirt group
-  ansible.builtin.user:
-    name: "{{ bootstrap_local_user }}"
-    groups: libvirt
-    append: true
-
-- name: Enable and start the libvirtd service
-  ansible.builtin.service:
-    name: libvirtd
-    enabled: true
-    state: started
