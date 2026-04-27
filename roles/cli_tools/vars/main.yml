@@ -28,8 +28,20 @@ cli_tools_mise_tools:
 # `fzf --bash` (fzf >=0.48) emits key-bindings + completion inline — replaces
 # the old `source /usr/share/doc/fzf/examples/...` lines that only existed
 # under the apt package.
+#
+# bash-completion + git completion are pre-loaded BEFORE `fzf --bash` because
+# fzf registers `_fzf_path_completion` for git via FZF_COMPLETION_PATH_COMMANDS,
+# which preempts bash-completion's lazy loader and leaves `_git` undefined —
+# subcommand/branch/ref completion then disappears. Pre-loading lets fzf's
+# `_fzf_setup_completion` wrap the real completion instead of replacing it.
+# Both files self-guard against double-sourcing, so the duplicate `.` from
+# Ubuntu's default bashrc (~line 109) is a no-op.
 cli_tools_bashrc_block: |
   eval "$(~/.local/bin/mise activate bash)"
+  if ! shopt -oq posix; then
+    [ -r /usr/share/bash-completion/bash_completion ] && . /usr/share/bash-completion/bash_completion
+    [ -r /usr/share/bash-completion/completions/git ] && . /usr/share/bash-completion/completions/git
+  fi
   eval "$(fzf --bash)"
   eval "$(starship init bash)"
   eval "$(direnv hook bash)"
