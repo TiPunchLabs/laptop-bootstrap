@@ -1,0 +1,13 @@
+---
+libvirt_packages:
+  - qemu-kvm
+  - libvirt-daemon-system
+  - libvirt-clients
+  - bridge-utils
+  - virtinst
+  - virt-manager
+  - ovmf
+
+libvirt_user_groups:
+  - libvirt
+  - kvm

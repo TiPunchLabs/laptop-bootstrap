@@ -70,6 +70,15 @@
     name: "{{ bootstrap_software_list | map(attribute='package') | list }}"
     state: present
 
+- name: Install libvirt / KVM stack
+  ansible.builtin.include_role:
+    name: libvirt
+    apply:
+      tags:
+        - libvirt
+  tags:
+    - libvirt
+
 - name: Install vagrant + libvirt
   ansible.builtin.include_role:
     name: vagrant

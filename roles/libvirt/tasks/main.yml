@@ -1,0 +1,17 @@
+---
+- name: Install KVM/libvirt packages
+  ansible.builtin.apt:
+    name: "{{ libvirt_packages }}"
+    state: present
+
+- name: Add local user to libvirt and kvm groups
+  ansible.builtin.user:
+    name: "{{ bootstrap_local_user }}"
+    groups: "{{ libvirt_user_groups }}"
+    append: true
+
+- name: Enable and start libvirtd
+  ansible.builtin.service:
+    name: libvirtd
+    enabled: true
+    state: started

@@ -22,6 +22,7 @@ This project uses Ansible to automate the installation and configuration of a la
   - `devtools/`: Development tools (Postman, etc.)
   - `docker/`: Docker engine + compose plugin (deb822 source, atomic GPG dearmor)
   - `git/`: Git configuration
+  - `libvirt/`: KVM + libvirt user stack (qemu-kvm, virt-manager, virtinst, ovmf, ...) — also consumed by `vagrant/` as a meta-dependency
   - `vagrant/`: Vagrant + libvirt + vagrant-libvirt plugin (system-managed per ADR-0001)
 - `test/smoke/`: Vagrant + libvirt smoke harness for replaying the playbook on a clean VM
 - `docs/`:
@@ -54,7 +55,7 @@ This project uses Ansible to automate the installation and configuration of a la
 │   ├── bootstrap/              # entry point + vendor apt sources
 │   ├── cli_tools/              # mise-managed user CLI tools + shell hooks block
 │   ├── cleanup_legacy/         # pre-mise eviction
-│   ├── devtools/  ·  docker/  ·  git/  ·  vagrant/
+│   ├── devtools/  ·  docker/  ·  git/  ·  libvirt/  ·  vagrant/
 └── test/smoke/                 # Vagrant + libvirt replay harness
 ```
 
@@ -125,7 +126,8 @@ For the daily edit → verify → ship loop, see [`docs/guide-daily-usage.md`](d
 | `docker` | Install Docker and Docker Compose |
 | `git` | Configure Git |
 | `devtools` | Install development tools (Postman) |
-| `vagrant` | Install Vagrant + libvirt stack |
+| `libvirt` | Install KVM + libvirt user stack (qemu-kvm, virt-manager, virtinst, ovmf, ...) |
+| `vagrant` | Install Vagrant + the vagrant-libvirt plugin (depends on `libvirt`) |
 | `cleanup-legacy` | Remove pre-mise installations |
 | `cli-tools` | Install/update all CLI tools via mise |
 | `mise` | Alias for `cli-tools` |
@@ -154,6 +156,10 @@ eval "$(~/.local/bin/mise activate bash)"
 eval "$(starship init bash)"
 eval "$(direnv hook bash)"
 ```
+
+### `kvm` group membership (one-time, post-libvirt-role)
+
+On the first playbook run after the `libvirt` role landed, your user is added to the `kvm` group (in addition to `libvirt`). The new membership only takes effect for **new** sessions — run `newgrp kvm` in the current shell or simply log out and back in.
 
 After deletion, re-run `make play-cli-tools` to regenerate a clean managed block.
 
