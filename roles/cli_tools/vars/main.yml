@@ -29,17 +29,14 @@ cli_tools_mise_tools:
 # the old `source /usr/share/doc/fzf/examples/...` lines that only existed
 # under the apt package.
 #
-# bash-completion + git completion are pre-loaded BEFORE `fzf --bash` because
-# fzf registers `_fzf_path_completion` for git via FZF_COMPLETION_PATH_COMMANDS,
-# which preempts bash-completion's lazy loader and leaves `_git` undefined —
-# subcommand/branch/ref completion then disappears. Pre-loading lets fzf's
-# `_fzf_setup_completion` wrap the real completion instead of replacing it.
-# Both files self-guard against double-sourcing, so the duplicate `.` from
-# Ubuntu's default bashrc (~line 109) is a no-op.
+# Pre-load git's completion BEFORE `fzf --bash`: fzf snapshots `complete -p git`
+# at init time, so if `__git_main` isn't already registered fzf clobbers git's
+# completion with its generic path completer (no subcommands/branches/refs).
+# The bash-completion framework itself is left to Ubuntu's default bashrc — git's
+# completion is self-contained for the path that runs at fzf-init time.
 cli_tools_bashrc_block: |
   eval "$(~/.local/bin/mise activate bash)"
   if ! shopt -oq posix; then
-    [ -r /usr/share/bash-completion/bash_completion ] && . /usr/share/bash-completion/bash_completion
     [ -r /usr/share/bash-completion/completions/git ] && . /usr/share/bash-completion/completions/git
   fi
   eval "$(fzf --bash)"
