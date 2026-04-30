@@ -1,0 +1,17 @@
+---
+- name: Ensure /etc/systemd/resolved.conf.d exists
+  ansible.builtin.file:
+    path: /etc/systemd/resolved.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Deploy internal-dns drop-in for systemd-resolved
+  ansible.builtin.template:
+    src: internal-dns.conf.j2
+    dest: /etc/systemd/resolved.conf.d/internal-dns.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart systemd-resolved
