@@ -43,6 +43,15 @@
   ansible.builtin.include_tasks:
     file: update_hosts.yml
 
+- name: Configure internal DNS drop-in for systemd-resolved
+  ansible.builtin.include_tasks:
+    file: configure_internal_dns.yml
+    apply:
+      tags:
+        - internal-dns
+  tags:
+    - internal-dns
+
 - name: Detect dpkg architecture (e.g., amd64, arm64)
   ansible.builtin.command: dpkg --print-architecture
   register: bootstrap_dpkg_arch

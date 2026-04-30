@@ -1,0 +1,7 @@
+#
+# Ansible managed
+#
+
+[Resolve]
+DNS={{ bootstrap_internal_dns_servers | join(' ') }}
+Domains={{ bootstrap_internal_dns_domains | join(' ') }}

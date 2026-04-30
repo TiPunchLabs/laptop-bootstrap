@@ -1,0 +1,3 @@
+---
+bootstrap_internal_dns_servers: "{{ internal_dns_servers }}"
+bootstrap_internal_dns_domains: "{{ internal_dns_domains }}"
