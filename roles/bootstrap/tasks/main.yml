@@ -52,6 +52,15 @@
   tags:
     - internal-dns
 
+- name: Configure sudo defaults drop-in
+  ansible.builtin.include_tasks:
+    file: configure_sudo.yml
+    apply:
+      tags:
+        - sudo
+  tags:
+    - sudo
+
 - name: Detect dpkg architecture (e.g., amd64, arm64)
   ansible.builtin.command: dpkg --print-architecture
   register: bootstrap_dpkg_arch

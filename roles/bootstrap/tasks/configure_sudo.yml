@@ -1,0 +1,9 @@
+---
+- name: Deploy sudo defaults drop-in (extend authentication timestamp)
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/10-laptop-defaults
+    content: "Defaults timestamp_timeout=60\n"
+    owner: root
+    group: root
+    mode: '0440'
+    validate: '/usr/sbin/visudo -cf %s'
