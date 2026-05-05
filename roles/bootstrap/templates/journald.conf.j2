@@ -1,0 +1,19 @@
+#
+# Ansible managed
+#
+
+[Journal]
+Storage={{ bootstrap_journald_storage }}
+
+SystemMaxUse={{ bootstrap_journald_system_max_use }}
+SystemKeepFree={{ bootstrap_journald_system_keep_free }}
+SystemMaxFileSize={{ bootstrap_journald_system_max_file_size }}
+
+MaxRetentionSec={{ bootstrap_journald_max_retention_sec }}
+
+Compress={{ 'yes' if bootstrap_journald_compress else 'no' }}
+
+RateLimitIntervalSec={{ bootstrap_journald_rate_limit_interval_sec }}
+RateLimitBurst={{ bootstrap_journald_rate_limit_burst }}
+
+RuntimeMaxUse={{ bootstrap_journald_runtime_max_use }}

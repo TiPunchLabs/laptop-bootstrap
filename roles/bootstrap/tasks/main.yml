@@ -61,6 +61,15 @@
   tags:
     - sudo
 
+- name: Configure journald drop-in (recommended defaults)
+  ansible.builtin.include_tasks:
+    file: configure_journald.yml
+    apply:
+      tags:
+        - journald
+  tags:
+    - journald
+
 - name: Detect dpkg architecture (e.g., amd64, arm64)
   ansible.builtin.command: dpkg --print-architecture
   register: bootstrap_dpkg_arch

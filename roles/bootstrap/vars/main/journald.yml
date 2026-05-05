@@ -1,0 +1,34 @@
+---
+# Where logs are kept: 'persistent' = on disk under /var/log/journal,
+# survives reboots (vs. 'volatile' = RAM only, lost on reboot).
+bootstrap_journald_storage: persistent
+
+# Hard cap on total disk used by the persistent journal in /var/log/journal.
+# journald rotates / deletes oldest archives once this is reached.
+bootstrap_journald_system_max_use: 300M
+
+# Minimum free space to preserve on the filesystem hosting the journal.
+# journald shrinks the journal further if free space drops below this.
+bootstrap_journald_system_keep_free: 200M
+
+# Max size of a single journal file before it is rotated to an archive.
+# Smaller files = faster `journalctl` queries and finer-grained pruning.
+bootstrap_journald_system_max_file_size: 30M
+
+# Max age of any log entry — older entries are deleted on rotation,
+# even if SystemMaxUse hasn't been hit yet.
+bootstrap_journald_max_retention_sec: 1month
+
+# Compress archived journal files (zstd). Trades a bit of CPU for ~5x less disk.
+bootstrap_journald_compress: true
+
+# Rate-limit window: per-service message budget is enforced over this interval.
+bootstrap_journald_rate_limit_interval_sec: 30s
+
+# Max messages a single service can emit per RateLimitIntervalSec window
+# before being throttled. Protects the journal from runaway log loops.
+bootstrap_journald_rate_limit_burst: 1000
+
+# Cap on RAM used by the runtime (volatile) journal in /run/log/journal,
+# used early at boot before /var is mounted, or when Storage=volatile.
+bootstrap_journald_runtime_max_use: 100M
