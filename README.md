@@ -131,6 +131,9 @@ For the daily edit → verify → ship loop, see [`docs/guide-daily-usage.md`](d
 | `cleanup-legacy` | Remove pre-mise installations |
 | `cli-tools` | Install/update all CLI tools via mise |
 | `mise` | Alias for `cli-tools` |
+| `internal-dns` | Configure internal DNS drop-in for systemd-resolved |
+| `sudo` | Configure sudo defaults drop-in (timestamp_timeout) |
+| `journald` | Configure systemd-journald drop-in (persistent log defaults) |
 
 ## Migrating from a Pre-mise Laptop
 
