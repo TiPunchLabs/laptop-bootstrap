@@ -1,0 +1,26 @@
+---
+- name: Query installed Obsidian version
+  ansible.builtin.command:
+    cmd: "dpkg-query -W -f='${Version}' obsidian"
+  register: obsidian_installed
+  changed_when: false
+  failed_when: false
+
+- name: Download Obsidian .deb (pinned version)
+  ansible.builtin.get_url:
+    url: "{{ obsidian_deb_url }}"
+    dest: "{{ obsidian_deb_dest }}"
+    mode: "0644"
+  when: obsidian_installed.stdout | trim != obsidian_version
+
+- name: Install Obsidian from .deb (apt resolves dependencies)
+  ansible.builtin.apt:
+    deb: "{{ obsidian_deb_dest }}"
+    state: present
+  when: obsidian_installed.stdout | trim != obsidian_version
+
+- name: Remove downloaded .deb to keep things tidy
+  ansible.builtin.file:
+    path: "{{ obsidian_deb_dest }}"
+    state: absent
+  when: obsidian_installed.stdout | trim != obsidian_version
