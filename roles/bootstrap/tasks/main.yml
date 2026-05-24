@@ -142,6 +142,15 @@
   tags:
     - devtools
 
+- name: Install Obsidian
+  ansible.builtin.include_role:
+    name: obsidian
+    apply:
+      tags:
+        - obsidian
+  tags:
+    - obsidian
+
 - name: Cleanup legacy installations before mise takes over
   ansible.builtin.include_role:
     name: cleanup_legacy
