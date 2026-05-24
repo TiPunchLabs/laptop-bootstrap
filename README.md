@@ -20,6 +20,7 @@ This project uses Ansible to automate the installation and configuration of a la
   - `cli_tools/`: Unified CLI tool manager via [mise](https://mise.jdx.dev/) — installs uv, fzf, direnv, zoxide, eza, bat, chezmoi, starship, kubectl, terraform, awscli; manages an atomic `~/.bashrc` block
   - `cleanup_legacy/`: Removes pre-migration apt packages / binaries / repos superseded by mise
   - `devtools/`: Development tools (Postman, etc.)
+  - `obsidian/`: Obsidian notes app (pinned upstream `.deb` from GitHub releases)
   - `docker/`: Docker engine + compose plugin (deb822 source, atomic GPG dearmor)
   - `git/`: Git configuration
   - `libvirt/`: KVM + libvirt user stack (qemu-kvm, virt-manager, virtinst, ovmf, ...) — also consumed by `vagrant/` as a meta-dependency
@@ -55,7 +56,7 @@ This project uses Ansible to automate the installation and configuration of a la
 │   ├── bootstrap/              # entry point + vendor apt sources
 │   ├── cli_tools/              # mise-managed user CLI tools + shell hooks block
 │   ├── cleanup_legacy/         # pre-mise eviction
-│   ├── devtools/  ·  docker/  ·  git/  ·  libvirt/  ·  vagrant/
+│   ├── devtools/  ·  docker/  ·  git/  ·  libvirt/  ·  obsidian/  ·  vagrant/
 └── test/smoke/                 # Vagrant + libvirt replay harness
 ```
 
