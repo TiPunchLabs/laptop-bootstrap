@@ -80,18 +80,19 @@ manager runs as the **deploy user** via `become_user: "{{ bootstrap_local_user }
 [user] stat ~/.local/state/syncthing/config.xml
         │ absent (fresh host)            │ present (current host)
         ▼                                ▼
-[user] syncthing generate         (skip generate — identity preserved)
-        │                                │
+[user] syncthing generate          (skip generate — identity + password preserved)
+       --gui-user --gui-password           │
+        │ (password hashed here)           │
         └──────────────┬─────────────────┘
                        ▼
-[user] read current <gui> address + user ; read whether <gui><password> is empty
+[user] read current <gui> address + user
                        ▼
-        desired == current  AND  password already set ? ──► no-op
+        desired address == current  AND  desired user == current ? ──► no-op
                        │ (drift detected)
                        ▼
 [user] systemd --user: stop syncthing   (only when an edit is needed)
                        ▼
-[user] community.general.xml: set /configuration/gui/{address,user,password}
+[user] community.general.xml: set /configuration/gui/{address,user}
                        ▼
 [user] systemd --user: enable + start syncthing   (idempotent)
 ```
@@ -119,7 +120,6 @@ syncthing_config_dir: "/home/{{ bootstrap_local_user }}/.local/state/syncthing"
 syncthing_gui_address: "127.0.0.1:8384"   # local-only by default
 syncthing_gui_user: "{{ bootstrap_local_user }}"
 # syncthing_gui_password is NOT defaulted here — it lives in the vault (see below).
-syncthing_force_password_reset: false      # rotation escape hatch (see Tasks)
 ```
 
 > ⚠️ **Note**: the config dir is `~/.local/state/syncthing` on this host (the
@@ -129,10 +129,18 @@ syncthing_force_password_reset: false      # rotation escape hatch (see Tasks)
 
 ### Secrets (vault — `group_vars/all`)
 
-`syncthing_gui_password` is stored **encrypted with ansible-vault** in
-`group_vars/all` (vaulted file), consistent with the project's existing vault
-usage. It is written into `<gui><password>`; Syncthing bcrypt-hashes the value on
-next start.
+`syncthing_gui_password` follows the project's public-alias-over-vault pattern: a
+public alias in `group_vars/all/vars.yml`
+(`syncthing_gui_password: "{{ vault_syncthing_gui_password | default('changeme') }}"`)
+backed by the **ansible-vault**-encrypted `vault_syncthing_gui_password` in
+`group_vars/all/vault/main.yml`. The `| default(...)` keeps the playbook runnable
+when the vault is absent (the smoke harness excludes it from rsync).
+
+**Password application (resolves the deferred hashing detail):** the password is
+set **only at `syncthing generate` time on a fresh host** —
+`syncthing generate --gui-password=…` writes a correct bcrypt hash. On an existing
+host the password is **never touched** (no re-hash churn, no pairing risk).
+Rotation is a manual action in the Syncthing GUI — out of scope for the role.
 
 ### Tasks (`roles/syncthing/tasks/main.yml`) — behaviour
 
@@ -150,40 +158,40 @@ next start.
 4. **Stat config** (user): `ansible.builtin.stat` on
    `{{ syncthing_config_dir }}/config.xml`.
 
-5. **Generate identity+config if absent** (user, fresh host only):
-   `syncthing generate --home {{ syncthing_config_dir }}` with
-   `creates: {{ syncthing_config_dir }}/config.xml`. On the current host this is
-   skipped → certs and pairings preserved.
+5. **Generate identity + config + credentials if absent** (user, fresh host
+   only): `syncthing generate --home {{ syncthing_config_dir }}
+   --gui-user={{ syncthing_gui_user }} --gui-password={{ syncthing_gui_password }}`
+   with `creates: {{ syncthing_config_dir }}/config.xml` and `no_log: true`. This
+   correctly bcrypt-hashes the password. On the current host this is **skipped** →
+   certs, pairings, and existing password preserved.
 
 6. **Read current GUI state** (user) via `community.general.xml` (read mode):
-   current `/configuration/gui/address` text, `/configuration/gui/user` text, and
-   whether `/configuration/gui/password` is empty. Register into facts.
+   current `/configuration/gui/address` text and `/configuration/gui/user` text.
+   Register into facts. (The password is not read/reconciled — see step 5.)
 
-7. **Compute drift**: `syncthing_gui_needs_update` is true when the desired
-   address or user differs from current, **or** the password is empty, **or**
-   `syncthing_force_password_reset` is set.
+7. **Stop service before editing** (user, scope user), **only when** the current
+   address or user differs from the desired value — prevents a running daemon from
+   overwriting our on-disk edit. Uses `ansible.builtin.systemd_service:
+   scope=user state=stopped` with
+   `environment: XDG_RUNTIME_DIR=/run/user/{{ syncthing_user_uid }}`.
 
-8. **Stop service before editing** (user, scope user), **only when**
-   `syncthing_gui_needs_update` — prevents a running daemon from overwriting our
-   on-disk edit. Uses `ansible.builtin.systemd_service: scope=user state=stopped`
-   with `environment: XDG_RUNTIME_DIR=/run/user/{{ syncthing_user_uid }}`.
+8. **Apply GUI edits** (user) via `community.general.xml`, each guarded by its own
+   drift check:
+   - set `/configuration/gui/address` text → `syncthing_gui_address` (only when it
+     differs)
+   - set `/configuration/gui/user` text → `syncthing_gui_user` (only when it
+     differs)
+   The `<password>` node is **never** edited on an existing host.
 
-9. **Apply GUI edits** (user), only when `syncthing_gui_needs_update`, three
-   `community.general.xml` tasks scoped to `/configuration/gui`:
-   - set `address` text → `syncthing_gui_address`
-   - set `user` text → `syncthing_gui_user`
-   - set `password` text → `syncthing_gui_password` **only when** it is currently
-     empty or `syncthing_force_password_reset` is true (avoids re-writing — and
-     thus re-hashing churn — a password that is already set).
+9. **Enable + start service** (user, scope user):
+   `ansible.builtin.systemd_service: scope=user name=syncthing enabled=true
+   state=started` with the same `XDG_RUNTIME_DIR` env. Idempotent: a
+   reboot-surviving, already-running daemon reports `ok`.
 
-10. **Enable + start service** (user, scope user):
-    `ansible.builtin.systemd_service: scope=user name=syncthing enabled=true
-    state=started` with the same `XDG_RUNTIME_DIR` env. Idempotent: a
-    reboot-surviving, already-running daemon reports `ok`.
-
-**Idempotence**: on a replay where address/user already match and the password is
-already set, steps 8–9 are skipped entirely (no stop, no edit), and step 10
-reports `ok` — **zero `changed`**, and the running daemon is never disrupted.
+**Idempotence**: on a replay where address and user already match (the current
+host's case — both already equal the defaults), steps 7–8 are skipped entirely
+(no stop, no edit), and step 9 reports `ok` — **zero `changed`**, and the running
+daemon is never disrupted.
 
 ### Meta (`roles/syncthing/meta/main.yml`)
 
@@ -221,8 +229,9 @@ Targeted run: `ansible-playbook playbook.yml --tags syncthing`.
   the ASCII tree, and add a `syncthing` row to the "Available Tags" table.
 - **`roles/syncthing/README.md`**: short role README following
   `roles/obsidian/README.md`. Documents the GUI variables, the vault password,
-  the local-only-vs-LAN address choice, the `syncthing_force_password_reset`
-  rotation flag, and the explicit "never touches identity/pairings" guarantee.
+  the local-only-vs-LAN address choice, that the password is set only on a fresh
+  host (rotation is manual in the GUI), and the explicit "never touches
+  identity/pairings" guarantee.
 
 ## Testing
 
