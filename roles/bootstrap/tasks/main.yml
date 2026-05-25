@@ -151,6 +151,15 @@
   tags:
     - obsidian
 
+- name: Install and configure Syncthing
+  ansible.builtin.include_role:
+    name: syncthing
+    apply:
+      tags:
+        - syncthing
+  tags:
+    - syncthing
+
 - name: Cleanup legacy installations before mise takes over
   ansible.builtin.include_role:
     name: cleanup_legacy

@@ -21,6 +21,7 @@ This project uses Ansible to automate the installation and configuration of a la
   - `cleanup_legacy/`: Removes pre-migration apt packages / binaries / repos superseded by mise
   - `devtools/`: Development tools (Postman, etc.)
   - `obsidian/`: Obsidian notes app (pinned upstream `.deb` from GitHub releases)
+  - `syncthing/`: Syncthing file sync — installs the distro package, enables the systemd user service, manages GUI address/auth (never touches identity/pairings)
   - `docker/`: Docker engine + compose plugin (deb822 source, atomic GPG dearmor)
   - `git/`: Git configuration
   - `libvirt/`: KVM + libvirt user stack (qemu-kvm, virt-manager, virtinst, ovmf, ...) — also consumed by `vagrant/` as a meta-dependency
@@ -56,7 +57,7 @@ This project uses Ansible to automate the installation and configuration of a la
 │   ├── bootstrap/              # entry point + vendor apt sources
 │   ├── cli_tools/              # mise-managed user CLI tools + shell hooks block
 │   ├── cleanup_legacy/         # pre-mise eviction
-│   ├── devtools/  ·  docker/  ·  git/  ·  libvirt/  ·  obsidian/  ·  vagrant/
+│   ├── devtools/  ·  docker/  ·  git/  ·  libvirt/  ·  obsidian/  ·  syncthing/  ·  vagrant/
 └── test/smoke/                 # Vagrant + libvirt replay harness
 ```
 
@@ -127,6 +128,7 @@ For the daily edit → verify → ship loop, see [`docs/guide-daily-usage.md`](d
 | `docker` | Install Docker and Docker Compose |
 | `git` | Configure Git |
 | `devtools` | Install development tools (Postman) |
+| `syncthing` | Install Syncthing + enable its user service + manage GUI settings |
 | `libvirt` | Install KVM + libvirt user stack (qemu-kvm, virt-manager, virtinst, ovmf, ...) |
 | `vagrant` | Install Vagrant + the vagrant-libvirt plugin (depends on `libvirt`) |
 | `cleanup-legacy` | Remove pre-mise installations |
