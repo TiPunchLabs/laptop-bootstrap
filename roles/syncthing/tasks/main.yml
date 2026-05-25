@@ -18,6 +18,11 @@
     cmd: "loginctl enable-linger {{ bootstrap_local_user }}"
     creates: "/var/lib/systemd/linger/{{ bootstrap_local_user }}"
 
+- name: Wait for the user systemd runtime directory to be ready
+  ansible.builtin.wait_for:
+    path: "/run/user/{{ syncthing_user_uid }}"
+    timeout: 30
+
 - name: Check whether a Syncthing config already exists
   become: true
   become_user: "{{ bootstrap_local_user }}"
@@ -29,11 +34,13 @@
   become: true
   become_user: "{{ bootstrap_local_user }}"
   ansible.builtin.command:
-    cmd: >-
-      syncthing generate
-      --home {{ syncthing_config_dir }}
-      --gui-user={{ syncthing_gui_user }}
-      --gui-password={{ syncthing_gui_password }}
+    argv:
+      - syncthing
+      - generate
+      - --home
+      - "{{ syncthing_config_dir }}"
+      - "--gui-user={{ syncthing_gui_user }}"
+      - "--gui-password={{ syncthing_gui_password }}"
     creates: "{{ syncthing_config_dir }}/config.xml"
   no_log: true
   when: not syncthing_config_stat.stat.exists
