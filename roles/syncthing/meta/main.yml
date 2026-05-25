@@ -1,0 +1,19 @@
+---
+galaxy_info:
+  author: xgueret
+  description: >-
+    Install Syncthing (distro package), enable its systemd user service, and
+    manage GUI listen address + auth without touching identity or pairings.
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - jammy
+        - noble
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+
+dependencies: []

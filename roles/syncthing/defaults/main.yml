@@ -1,0 +1,12 @@
+---
+# Modern XDG location used by the Ubuntu/Debian package. Override if a host
+# uses the legacy ~/.config/syncthing path.
+syncthing_config_dir: "/home/{{ bootstrap_local_user }}/.local/state/syncthing"
+
+# GUI listen address. Local-only by default; set to "0.0.0.0:8384" to expose on
+# the LAN (only do so with GUI auth enabled).
+syncthing_gui_address: "127.0.0.1:8384"
+
+# GUI username. The password is defined in group_vars/all (vault-backed alias
+# `syncthing_gui_password`) and is applied only when generating a fresh config.
+syncthing_gui_user: "{{ bootstrap_local_user }}"
