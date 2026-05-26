@@ -1,7 +1,9 @@
 ---
-- name: Install Syncthing package
+- name: Install Syncthing and the lxml dependency (for community.general.xml)
   ansible.builtin.apt:
-    name: syncthing
+    name:
+      - syncthing
+      - python3-lxml
     state: present
 
 - name: Resolve the deploy user account (needed for XDG_RUNTIME_DIR)
@@ -11,7 +13,7 @@
 
 - name: Set the deploy user uid fact
   ansible.builtin.set_fact:
-    syncthing_user_uid: "{{ getent_passwd[bootstrap_local_user][1] }}"
+    syncthing_user_uid: "{{ ansible_facts['getent_passwd'][bootstrap_local_user][1] }}"
 
 - name: Enable lingering so the user service runs without an active login
   ansible.builtin.command:
