@@ -34,7 +34,7 @@
 - Modify: `group_vars/all/vars.yml`
 - Modify: `group_vars/all/vault/main.yml` (interactive)
 
-- [ ] **Step 1: Add the public alias to `group_vars/all/vars.yml`**
+- [x] **Step 1: Add the public alias to `group_vars/all/vars.yml`**
 
 Append this line under the existing aliases (after the `internal_dns_domains` line):
 
@@ -44,7 +44,7 @@ syncthing_gui_password: "{{ vault_syncthing_gui_password | default('changeme') }
 
 The `default('changeme')` keeps the playbook runnable when the vault is absent (the smoke harness excludes the vault from rsync).
 
-- [ ] **Step 2: Add the encrypted secret to the vault (INTERACTIVE — user runs this)**
+- [x] **Step 2: Add the encrypted secret to the vault (INTERACTIVE — user runs this)**
 
 `ansible-vault` opens an editor and cannot run unattended. In the Claude Code prompt, run:
 
@@ -58,7 +58,7 @@ Add this line inside the decrypted buffer, then save & quit:
 vault_syncthing_gui_password: "<choose-a-strong-password>"
 ```
 
-- [ ] **Step 3: Verify the vault still decrypts and the alias resolves**
+- [x] **Step 3: Verify the vault still decrypts and the alias resolves**
 
 Run: `make vault-view`
 Expected: the decrypted YAML prints, including `vault_syncthing_gui_password`.
@@ -68,7 +68,7 @@ Expected: shows the password value (proves the alias resolves from the vault).
 
 > 💡 If `gpg-agent` OOMs during vault decrypt, run `gpgconf --kill all` then prime with `./bin/ansible-vault-pass.sh` before retrying.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add group_vars/all/vars.yml group_vars/all/vault/main.yml
@@ -83,7 +83,7 @@ git commit -m "feat(syncthing): add vault-backed GUI password variable"
 - Create: `roles/syncthing/defaults/main.yml`
 - Create: `roles/syncthing/meta/main.yml`
 
-- [ ] **Step 1: Create `roles/syncthing/defaults/main.yml`**
+- [x] **Step 1: Create `roles/syncthing/defaults/main.yml`**
 
 ```yaml
 ---
@@ -100,7 +100,7 @@ syncthing_gui_address: "127.0.0.1:8384"
 syncthing_gui_user: "{{ bootstrap_local_user }}"
 ```
 
-- [ ] **Step 2: Create `roles/syncthing/meta/main.yml`**
+- [x] **Step 2: Create `roles/syncthing/meta/main.yml`**
 
 ```yaml
 ---
@@ -124,12 +124,12 @@ galaxy_info:
 dependencies: []
 ```
 
-- [ ] **Step 3: Lint the two files**
+- [x] **Step 3: Lint the two files**
 
 Run: `uv run ansible-lint roles/syncthing/defaults/main.yml roles/syncthing/meta/main.yml`
 Expected: no errors (0 failures). `yamllint` clean too.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add roles/syncthing/defaults/main.yml roles/syncthing/meta/main.yml
@@ -143,7 +143,7 @@ git commit -m "feat(syncthing): scaffold role defaults and metadata"
 **Files:**
 - Create: `roles/syncthing/tasks/main.yml`
 
-- [ ] **Step 1: Create `roles/syncthing/tasks/main.yml`**
+- [x] **Step 1: Create `roles/syncthing/tasks/main.yml`**
 
 ```yaml
 ---
@@ -256,12 +256,12 @@ git commit -m "feat(syncthing): scaffold role defaults and metadata"
     XDG_RUNTIME_DIR: "/run/user/{{ syncthing_user_uid }}"
 ```
 
-- [ ] **Step 2: Lint the tasks file**
+- [x] **Step 2: Lint the tasks file**
 
 Run: `uv run ansible-lint roles/syncthing/tasks/main.yml`
 Expected: no errors. (If ansible-lint flags `command` for `loginctl`/`syncthing generate`, both are correctly guarded with `creates:`, which satisfies the `no-changed-when`/idempotency rules; resolve any genuine finding before committing.)
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add roles/syncthing/tasks/main.yml
@@ -275,7 +275,7 @@ git commit -m "feat(syncthing): install, enable user service, reconcile GUI sett
 **Files:**
 - Create: `roles/syncthing/README.md`
 
-- [ ] **Step 1: Create `roles/syncthing/README.md`**
+- [x] **Step 1: Create `roles/syncthing/README.md`**
 
 ````markdown
 # syncthing
@@ -337,7 +337,7 @@ make play-syncthing
 ```
 ````
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add roles/syncthing/README.md
@@ -351,7 +351,7 @@ git commit -m "docs(syncthing): add role README"
 **Files:**
 - Modify: `roles/bootstrap/tasks/main.yml`
 
-- [ ] **Step 1: Add the include block after the Obsidian block**
+- [x] **Step 1: Add the include block after the Obsidian block**
 
 Find this existing block in `roles/bootstrap/tasks/main.yml`:
 
@@ -381,17 +381,17 @@ Insert immediately **after** it:
 
 > The `apply: tags:` wrapper is mandatory: without it a `--tags syncthing` run gates the include but leaves the role's inner tasks untagged, so they silently skip while the run looks green.
 
-- [ ] **Step 2: Syntax-check the playbook scoped to the new tag**
+- [x] **Step 2: Syntax-check the playbook scoped to the new tag**
 
 Run: `uv run ansible-playbook -i inventory.yml playbook.yml --syntax-check --tags syncthing`
 Expected: `playbook: playbook.yml` with no parse errors.
 
-- [ ] **Step 3: Lint**
+- [x] **Step 3: Lint**
 
 Run: `uv run ansible-lint roles/bootstrap/tasks/main.yml`
 Expected: no errors.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add roles/bootstrap/tasks/main.yml
@@ -405,7 +405,7 @@ git commit -m "feat(bootstrap): invoke syncthing role with dedicated tag"
 **Files:**
 - Modify: `Makefile`
 
-- [ ] **Step 1: Add `play-syncthing` to the `.PHONY` line**
+- [x] **Step 1: Add `play-syncthing` to the `.PHONY` line**
 
 Change:
 
@@ -419,7 +419,7 @@ to:
 .PHONY: play-cli-tools play-docker play-git play-vagrant play-devtools play-cleanup-legacy play-obsidian play-syncthing
 ```
 
-- [ ] **Step 2: Add the `TAGS :=` assignment after the `play-obsidian` one**
+- [x] **Step 2: Add the `TAGS :=` assignment after the `play-obsidian` one**
 
 After:
 
@@ -433,7 +433,7 @@ add:
 play-syncthing:      TAGS := syncthing
 ```
 
-- [ ] **Step 3: Add the target dependency line after the `play-obsidian` one**
+- [x] **Step 3: Add the target dependency line after the `play-obsidian` one**
 
 After:
 
@@ -447,12 +447,12 @@ add:
 play-syncthing:      play ## Run only the syncthing role
 ```
 
-- [ ] **Step 4: Verify the target registers in help**
+- [x] **Step 4: Verify the target registers in help**
 
 Run: `make help | grep play-syncthing`
 Expected: `play-syncthing       Run only the syncthing role`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add Makefile
@@ -466,7 +466,7 @@ git commit -m "feat(make): add play-syncthing target to run only the syncthing r
 **Files:**
 - Modify: `README.md`
 
-- [ ] **Step 1: Add the role to the `roles/` bullet list**
+- [x] **Step 1: Add the role to the `roles/` bullet list**
 
 After the `obsidian/` bullet (the `Obsidian notes app …` line), add:
 
@@ -474,7 +474,7 @@ After the `obsidian/` bullet (the `Obsidian notes app …` line), add:
   - `syncthing/`: Syncthing file sync — installs the distro package, enables the systemd user service, manages GUI address/auth (never touches identity/pairings)
 ```
 
-- [ ] **Step 2: Add the role to the ASCII tree**
+- [x] **Step 2: Add the role to the ASCII tree**
 
 In the `roles/` section of the fenced tree, change the line:
 
@@ -488,7 +488,7 @@ to:
 │   ├── devtools/  ·  docker/  ·  git/  ·  libvirt/  ·  obsidian/  ·  syncthing/  ·  vagrant/
 ```
 
-- [ ] **Step 3: Add a row to the "Available Tags" table**
+- [x] **Step 3: Add a row to the "Available Tags" table**
 
 After the `obsidian` row is absent (there is none) — insert the `syncthing` row after the `devtools` row:
 
@@ -496,12 +496,12 @@ After the `obsidian` row is absent (there is none) — insert the `syncthing` ro
 | `syncthing` | Install Syncthing + enable its user service + manage GUI settings |
 ```
 
-- [ ] **Step 4: Verify markdown renders (no broken table)**
+- [x] **Step 4: Verify markdown renders (no broken table)**
 
 Run: `uv run ansible-lint README.md 2>/dev/null; grep -n "syncthing" README.md`
 Expected: the new role bullet, tree entry, and tag row all show.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add README.md
@@ -514,12 +514,12 @@ git commit -m "docs(syncthing): document role and list it in README"
 
 **Files:** none (verification only)
 
-- [ ] **Step 1: Run the full pre-commit suite**
+- [x] **Step 1: Run the full pre-commit suite**
 
 Run: `make lint`
 Expected: every hook `Passed` or `Skipped` (ansible-lint, yamllint, shellcheck, vault check, etc.). Fix any failure and amend the relevant commit.
 
-- [ ] **Step 2: Syntax-check the whole playbook**
+- [x] **Step 2: Syntax-check the whole playbook**
 
 Run: `uv run ansible-playbook -i inventory.yml playbook.yml --syntax-check`
 Expected: no parse errors.
@@ -530,7 +530,7 @@ Expected: no parse errors.
 
 **Files:** none (verification only)
 
-- [ ] **Step 1: Smoke-test a fresh install + idempotence**
+- [x] **Step 1: Smoke-test a fresh install + idempotence**
 
 Run: `make smoke-up` (first time) then `make smoke-replay TAGS=syncthing`
 Expected on the VM:
@@ -539,12 +539,12 @@ Expected on the VM:
 - `systemctl --user is-enabled syncthing` → `enabled`, `is-active` → `active`;
 - GUI address = `127.0.0.1:8384`, GUI user set.
 
-- [ ] **Step 2: Confirm idempotence**
+- [x] **Step 2: Confirm idempotence**
 
 Run: `make smoke-replay TAGS=syncthing` a second time.
 Expected: recap shows **`changed=0`** for the syncthing tasks (no stop/start, no edit).
 
-- [ ] **Step 3: Real-host replay (this laptop — enables the service)**
+- [x] **Step 3: Real-host replay (this laptop — enables the service)**
 
 > This is the intended behaviour change on your machine: it enables + starts the
 > user service (currently `disabled`/`dead`). It is a config no-op (address/user
@@ -553,7 +553,7 @@ Expected: recap shows **`changed=0`** for the syncthing tasks (no stop/start, no
 Run: `make play-syncthing`
 Expected: only the linger + enable/start tasks report `changed`; GUI tasks `ok`.
 
-- [ ] **Step 4: Verify identity + pairings preserved on the real host**
+- [x] **Step 4: Verify identity + pairings preserved on the real host**
 
 Run: `ls -l ~/.local/state/syncthing/cert.pem ~/.local/state/syncthing/key.pem`
 Expected: **unchanged mtime** (Dec 12 — not regenerated).
@@ -563,7 +563,7 @@ Expected: `enabled` and `active`.
 
 Then open `http://127.0.0.1:8384` and confirm your paired devices and shared folders are all still present.
 
-- [ ] **Step 5: Smoke teardown (optional)**
+- [x] **Step 5: Smoke teardown (optional)**
 
 Run: `make smoke-down`
 
