@@ -1,0 +1,117 @@
+---
+- name: Install Syncthing and the lxml dependency (for community.general.xml)
+  ansible.builtin.apt:
+    name:
+      - syncthing
+      - python3-lxml
+    state: present
+
+- name: Resolve the deploy user account (needed for XDG_RUNTIME_DIR)
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ bootstrap_local_user }}"
+
+- name: Set the deploy user uid fact
+  ansible.builtin.set_fact:
+    syncthing_user_uid: "{{ ansible_facts['getent_passwd'][bootstrap_local_user][1] }}"
+
+- name: Enable lingering so the user service runs without an active login
+  ansible.builtin.command:
+    cmd: "loginctl enable-linger {{ bootstrap_local_user }}"
+    creates: "/var/lib/systemd/linger/{{ bootstrap_local_user }}"
+
+- name: Wait for the user systemd runtime directory to be ready
+  ansible.builtin.wait_for:
+    path: "/run/user/{{ syncthing_user_uid }}"
+    timeout: 30
+
+- name: Check whether a Syncthing config already exists
+  become: true
+  become_user: "{{ bootstrap_local_user }}"
+  ansible.builtin.stat:
+    path: "{{ syncthing_config_dir }}/config.xml"
+  register: syncthing_config_stat
+
+- name: Generate identity + config + GUI credentials (fresh host only)
+  become: true
+  become_user: "{{ bootstrap_local_user }}"
+  ansible.builtin.command:
+    argv:
+      - syncthing
+      - generate
+      - --home
+      - "{{ syncthing_config_dir }}"
+      - "--gui-user={{ syncthing_gui_user }}"
+      - "--gui-password={{ syncthing_gui_password }}"
+    creates: "{{ syncthing_config_dir }}/config.xml"
+  no_log: true
+  when: not syncthing_config_stat.stat.exists
+
+- name: Read current GUI listen address
+  become: true
+  become_user: "{{ bootstrap_local_user }}"
+  community.general.xml:
+    path: "{{ syncthing_config_dir }}/config.xml"
+    xpath: /configuration/gui/address
+    content: text
+  register: syncthing_gui_address_read
+  changed_when: false
+
+- name: Read current GUI user
+  become: true
+  become_user: "{{ bootstrap_local_user }}"
+  community.general.xml:
+    path: "{{ syncthing_config_dir }}/config.xml"
+    xpath: /configuration/gui/user
+    content: text
+  register: syncthing_gui_user_read
+  changed_when: false
+
+- name: Compute current GUI values
+  ansible.builtin.set_fact:
+    syncthing_gui_address_current: >-
+      {{ syncthing_gui_address_read.matches | map(attribute='address') | list | first | default('', true) }}
+    syncthing_gui_user_current: >-
+      {{ syncthing_gui_user_read.matches | map(attribute='user') | list | first | default('', true) }}
+
+- name: Stop the Syncthing user service before editing config
+  become: true
+  become_user: "{{ bootstrap_local_user }}"
+  ansible.builtin.systemd_service:
+    name: syncthing.service
+    scope: user
+    state: stopped
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ syncthing_user_uid }}"
+  when: >-
+    syncthing_gui_address_current != syncthing_gui_address
+    or syncthing_gui_user_current != syncthing_gui_user
+
+- name: Set GUI listen address
+  become: true
+  become_user: "{{ bootstrap_local_user }}"
+  community.general.xml:
+    path: "{{ syncthing_config_dir }}/config.xml"
+    xpath: /configuration/gui/address
+    value: "{{ syncthing_gui_address }}"
+  when: syncthing_gui_address_current != syncthing_gui_address
+
+- name: Set GUI user
+  become: true
+  become_user: "{{ bootstrap_local_user }}"
+  community.general.xml:
+    path: "{{ syncthing_config_dir }}/config.xml"
+    xpath: /configuration/gui/user
+    value: "{{ syncthing_gui_user }}"
+  when: syncthing_gui_user_current != syncthing_gui_user
+
+- name: Enable and start the Syncthing user service
+  become: true
+  become_user: "{{ bootstrap_local_user }}"
+  ansible.builtin.systemd_service:
+    name: syncthing.service
+    scope: user
+    enabled: true
+    state: started
+  environment:
+    XDG_RUNTIME_DIR: "/run/user/{{ syncthing_user_uid }}"

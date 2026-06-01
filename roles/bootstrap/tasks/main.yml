@@ -20,6 +20,7 @@
   register: bootstrap_username_on_the_host
   delegate_to: localhost
   changed_when: false
+  check_mode: false  # read-only; must run even under --check so downstream roles resolve the user
   tags: always
 
 - name: Set fact username on the host
@@ -150,6 +151,15 @@
         - obsidian
   tags:
     - obsidian
+
+- name: Install and configure Syncthing
+  ansible.builtin.include_role:
+    name: syncthing
+    apply:
+      tags:
+        - syncthing
+  tags:
+    - syncthing
 
 - name: Cleanup legacy installations before mise takes over
   ansible.builtin.include_role:
