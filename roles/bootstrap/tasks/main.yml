@@ -143,6 +143,15 @@
   tags:
     - devtools
 
+- name: Install Postman CLI
+  ansible.builtin.include_role:
+    name: postman_cli
+    apply:
+      tags:
+        - postman-cli
+  tags:
+    - postman-cli
+
 - name: Install Obsidian
   ansible.builtin.include_role:
     name: obsidian
