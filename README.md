@@ -20,6 +20,7 @@ This project uses Ansible to automate the installation and configuration of a la
   - `cli_tools/`: Unified CLI tool manager via [mise](https://mise.jdx.dev/) — installs uv, fzf, direnv, zoxide, eza, bat, chezmoi, starship, kubectl, terraform, awscli; manages an atomic `~/.bashrc` block
   - `cleanup_legacy/`: Removes pre-migration apt packages / binaries / repos superseded by mise
   - `devtools/`: Development tools (Postman, etc.)
+  - `postman_cli/`: Postman **CLI** (`postman` collection runner) — pinned tarball from `dl-cli.pstmn.io`, owns `/usr/local/bin/postman` (the `devtools` role's desktop app is symlinked as `postman-app`)
   - `obsidian/`: Obsidian notes app (pinned upstream `.deb` from GitHub releases)
   - `syncthing/`: Syncthing file sync — installs the distro package, enables the systemd user service, manages GUI address/auth (never touches identity/pairings)
   - `docker/`: Docker engine + compose plugin (deb822 source, atomic GPG dearmor)
@@ -128,6 +129,7 @@ For the daily edit → verify → ship loop, see [`docs/guide-daily-usage.md`](d
 | `docker` | Install Docker and Docker Compose |
 | `git` | Configure Git |
 | `devtools` | Install development tools (Postman) |
+| `postman-cli` | Install the pinned Postman CLI (`postman` command) |
 | `syncthing` | Install Syncthing + enable its user service + manage GUI settings |
 | `libvirt` | Install KVM + libvirt user stack (qemu-kvm, virt-manager, virtinst, ovmf, ...) |
 | `vagrant` | Install Vagrant + the vagrant-libvirt plugin (depends on `libvirt`) |
