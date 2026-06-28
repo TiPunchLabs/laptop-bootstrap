@@ -64,4 +64,3 @@
   ansible.builtin.file:
     path: "{{ postman_cli_tarball_dest }}"
     state: absent
-  when: postman_cli_needs_install | bool
