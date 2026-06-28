@@ -7,18 +7,29 @@
       The Postman CLI is only published for x86_64 (linux64); this host is
       {{ ansible_facts['architecture'] }}.
 
+- name: Check whether the Postman CLI binary is already installed
+  ansible.builtin.stat:
+    path: "{{ postman_cli_install_dir }}/postman-cli"
+  register: postman_cli_binary
+
+# Probe the real CLI binary directly, never {{ postman_cli_bin_link }}: that
+# symlink may still point at the Postman desktop app (/opt/Postman/Postman)
+# when this role runs before the devtools migration. The Electron GUI ignores
+# --version, opens a window and never exits, which would hang the play.
 - name: Query installed Postman CLI version
   ansible.builtin.command:
-    cmd: "{{ postman_cli_bin_link }} --version"
+    cmd: "{{ postman_cli_install_dir }}/postman-cli --version"
   register: postman_cli_installed
   changed_when: false
   failed_when: false
+  when: postman_cli_binary.stat.exists
 
 - name: Decide whether a (re)install is needed
   ansible.builtin.set_fact:
     postman_cli_needs_install: >-
-      {{ (postman_cli_installed.rc != 0
-          or (postman_cli_installed.stdout | trim) != postman_cli_version) | bool }}
+      {{ (not postman_cli_binary.stat.exists
+          or postman_cli_installed.rc | default(1) != 0
+          or (postman_cli_installed.stdout | default('') | trim) != postman_cli_version) | bool }}
 
 - name: Remove any previous install dir (purge stale version files)
   ansible.builtin.file:

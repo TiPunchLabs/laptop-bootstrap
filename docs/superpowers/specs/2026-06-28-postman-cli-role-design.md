@@ -115,9 +115,14 @@ Idempotence modeled on `obsidian` (version-gated download/install):
    `msg:` explaining Postman ships `linux64` only. (Self-contained: when run via
    `--tags postman-cli`, the `bootstrap` pre-tasks that compute `bootstrap_apt_arch`
    are untagged and skip, so the role relies on the gathered fact, not that var.)
-2. **Query installed version** — run `postman --version`
-   (`changed_when: false`, `failed_when: false`); capture stdout.
-3. **When** the command failed or the reported version ≠ `postman_cli_version`:
+2. **Query installed version** — `stat` `<dir>/postman-cli`; only if it exists,
+   run **the real binary directly** `<dir>/postman-cli --version`
+   (`changed_when: false`, `failed_when: false`). **Never** probe through
+   `postman_cli_bin_link`: that symlink may still point at the Postman desktop
+   app (`/opt/Postman/Postman`) when this role runs before the `devtools`
+   migration, and the Electron GUI ignores `--version`, opens a window and never
+   exits — which hangs the play.
+3. **When** the binary is absent, the probe failed, or the reported version ≠ `postman_cli_version`:
    - remove `postman_cli_install_dir` (purge stale files from any previous version),
    - recreate the directory (`mode: 0755`),
    - `get_url` the versioned tarball → `postman_cli_tarball_dest`,
