@@ -12,10 +12,24 @@
     remote_src: true
     creates: "/opt/Postman"
 
-- name: Create a symbolic link for Postman
+- name: Inspect any existing /usr/local/bin/postman (CLI may own it)
+  ansible.builtin.stat:
+    path: "/usr/local/bin/postman"
+  register: devtools_postman_existing
+
+- name: Drop the stale desktop symlink that squatted the CLI name
+  ansible.builtin.file:
+    path: "/usr/local/bin/postman"
+    state: absent
+  when:
+    - devtools_postman_existing.stat.exists | default(false)
+    - devtools_postman_existing.stat.islnk | default(false)
+    - (devtools_postman_existing.stat.lnk_target | default('')) is search('/opt/Postman/')
+
+- name: Create a symbolic link for the Postman desktop app (postman-app)
   ansible.builtin.file:
     src: "/opt/Postman/Postman"
-    dest: "/usr/local/bin/postman"
+    dest: "/usr/local/bin/postman-app"
     state: link
 
 - name: Create a desktop entry for Postman
