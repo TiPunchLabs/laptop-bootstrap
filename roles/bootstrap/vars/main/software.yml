@@ -61,6 +61,16 @@ bootstrap_software_list:
       components: ["main"]
       architectures: ["{{ bootstrap_apt_arch }}"]
 
+  - name: "opera"
+    package: "opera-stable"
+    key_url: "https://deb.opera.com/archive.key"
+    key_format: "ascii"
+    deb822:
+      uris: "https://deb.opera.com/opera-stable"
+      suites: "stable"
+      components: ["non-free"]
+      architectures: ["{{ bootstrap_apt_arch }}"]
+
   - name: "trivy"
     package: "trivy"
     key_url: "https://aquasecurity.github.io/trivy-repo/deb/public.key"
