@@ -1,0 +1,7 @@
+---
+postman_cli_version: "1.40.0"
+postman_cli_download_url: >-
+  https://dl-cli.pstmn.io/download/version/{{ postman_cli_version }}/linux64
+postman_cli_install_dir: "/opt/postman-cli"
+postman_cli_bin_link: "/usr/local/bin/postman"
+postman_cli_tarball_dest: "/tmp/postman-cli-{{ postman_cli_version }}.tar.gz"
