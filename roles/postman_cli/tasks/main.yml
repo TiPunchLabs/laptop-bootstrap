@@ -1,0 +1,77 @@
+---
+- name: Assert the host architecture is supported (Postman ships linux64 only)
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['architecture'] == 'x86_64'
+    fail_msg: >-
+      The Postman CLI is only published for x86_64 (linux64); this host is
+      {{ ansible_facts['architecture'] }}.
+
+- name: Check whether the Postman CLI binary is already installed
+  ansible.builtin.stat:
+    path: "{{ postman_cli_install_dir }}/postman-cli"
+  register: postman_cli_binary
+
+# Probe the real CLI binary directly, never {{ postman_cli_bin_link }}: that
+# symlink may still point at the Postman desktop app (/opt/Postman/Postman)
+# when this role runs before the devtools migration. The Electron GUI ignores
+# --version, opens a window and never exits, which would hang the play.
+- name: Query installed Postman CLI version
+  ansible.builtin.command:
+    cmd: "{{ postman_cli_install_dir }}/postman-cli --version"
+  register: postman_cli_installed
+  changed_when: false
+  failed_when: false
+  when: postman_cli_binary.stat.exists
+
+- name: Decide whether a (re)install is needed
+  ansible.builtin.set_fact:
+    postman_cli_needs_install: >-
+      {{ (not postman_cli_binary.stat.exists
+          or postman_cli_installed.rc | default(1) != 0
+          or (postman_cli_installed.stdout | default('') | trim) != postman_cli_version) | bool }}
+
+- name: Remove any previous install dir (purge stale version files)
+  ansible.builtin.file:
+    path: "{{ postman_cli_install_dir }}"
+    state: absent
+  when: postman_cli_needs_install | bool
+
+- name: Ensure the install dir exists
+  ansible.builtin.file:
+    path: "{{ postman_cli_install_dir }}"
+    state: directory
+    mode: "0755"
+  when: postman_cli_needs_install | bool
+
+- name: Download the pinned Postman CLI tarball
+  ansible.builtin.get_url:
+    url: "{{ postman_cli_download_url }}"
+    dest: "{{ postman_cli_tarball_dest }}"
+    mode: "0644"
+  when: postman_cli_needs_install | bool
+
+- name: Extract the Postman CLI tarball
+  ansible.builtin.unarchive:
+    src: "{{ postman_cli_tarball_dest }}"
+    dest: "{{ postman_cli_install_dir }}"
+    remote_src: true
+  when: postman_cli_needs_install | bool
+
+- name: Ensure the Postman CLI binary is executable
+  ansible.builtin.file:
+    path: "{{ postman_cli_install_dir }}/postman-cli"
+    mode: "0755"
+  when: postman_cli_needs_install | bool
+
+- name: Symlink the Postman CLI into PATH (CLI owns /usr/local/bin/postman)
+  ansible.builtin.file:
+    src: "{{ postman_cli_install_dir }}/postman-cli"
+    dest: "{{ postman_cli_bin_link }}"
+    state: link
+    force: true
+
+- name: Remove the downloaded tarball to keep things tidy
+  ansible.builtin.file:
+    path: "{{ postman_cli_tarball_dest }}"
+    state: absent
