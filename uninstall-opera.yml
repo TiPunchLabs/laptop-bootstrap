@@ -1,0 +1,57 @@
+---
+# One-shot removal of the Opera browser.
+#
+# Dropping the `opera` entry from `bootstrap_software_list` stops future
+# installs but never undoes an existing one. Two extra artefacts survive a
+# plain `apt purge` because the bootstrap role never owned them: Opera's own
+# postinst writes a second apt source (`opera-stable.list`) and drops its
+# archive keys straight into `trusted.gpg.d`. Left behind, apt keeps polling
+# deb.opera.com forever.
+#
+# Delete this playbook once every laptop has been through it.
+- name: Uninstall the Opera browser
+  hosts: local
+  become: true
+
+  vars:
+    opera_apt_packages:
+      - opera-stable
+
+    # `opera.sources` is ours (deb822, written by the bootstrap role);
+    # `opera-stable.list` is written by the Opera `.deb` postinst.
+    opera_apt_sources:
+      - /etc/apt/sources.list.d/opera.sources
+      - /etc/apt/sources.list.d/opera-stable.list
+
+    # `opera.gpg` is ours; the `opera.archive.key.*` pair is vendor-dropped.
+    opera_apt_keyrings:
+      - /etc/apt/keyrings/opera.gpg
+      - /etc/apt/trusted.gpg.d/opera.archive.key.2023.gpg
+      - /etc/apt/trusted.gpg.d/opera.archive.key.2025.gpg
+
+  tasks:
+    - name: Purge Opera apt packages
+      ansible.builtin.apt:
+        pkg: "{{ opera_apt_packages }}"
+        state: absent
+        purge: true
+        autoremove: true
+
+    - name: Remove Opera apt sources
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop: "{{ opera_apt_sources }}"
+      register: opera_sources_removed
+
+    - name: Remove Opera apt GPG keyrings
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop: "{{ opera_apt_keyrings }}"
+      register: opera_keyrings_removed
+
+    - name: Refresh apt cache after source cleanup
+      ansible.builtin.apt:
+        update_cache: true
+      when: opera_sources_removed.changed or opera_keyrings_removed.changed
