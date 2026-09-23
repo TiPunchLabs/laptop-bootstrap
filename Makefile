@@ -48,6 +48,12 @@ play-obsidian:       play ## Run only the obsidian role
 play-syncthing:      play ## Run only the syncthing role
 play-postman-cli:    play ## Run only the postman_cli role
 
+# ——— One-shot maintenance playbooks ———
+
+.PHONY: uninstall-opera
+uninstall-opera: ## Purge Opera (package, apt sources, vendor keyrings)
+	ansible-playbook -i $(INVENTORY) uninstall-opera.yml
+
 # ——— Lint ———
 
 .PHONY: lint lint-ansible
