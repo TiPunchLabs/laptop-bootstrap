@@ -1,258 +1,189 @@
-# Automated Laptop Setup and Configuration with Ansible
+# Laptop Bootstrap
 
-## Description ![Stars](https://img.shields.io/github/stars/TiPunchLabs/laptop-bootstrap?style=social) ![Last Commit](https://img.shields.io/github/last-commit/TiPunchLabs/laptop-bootstrap) ![Status](https://img.shields.io/badge/Status-Active-brightgreen)
+Ansible project that keeps a Debian/Ubuntu developer laptop reproducible: system packages, vendor apt repositories, desktop apps, container/virtualization stacks and user CLI tools are all declared in this repository and applied with one playbook.
 
-This project uses Ansible to automate the installation and configuration of a laptop running Debian or Ubuntu. It includes essential software installation, system configuration, and the management of development and containerization tools.
+## Architecture
 
-## Project Structure
+Three layers, each with a distinct job:
 
-- `ansible.cfg`: Global Ansible configuration
-- `inventory.yml`: Defines hosts and groups for Ansible
-- `playbook.yml`: Main playbook orchestrating the role execution
-- `Makefile`: Daily-use targets (`make help` to discover them)
-- `bin/`: Shell scripts
-  - `local_laptop.sh`: Bootstrap script to run the playbook
-  - `ansible-vault-pass.sh`: Vault password helper (reads from `pass`)
-  - `check_ansible_vault.sh`: Pre-commit hook for vault encryption
-  - `add-yaml-document-start.sh`: Pre-commit hook for YAML formatting
-- `roles/`: Contains the Ansible roles
-  - `apt_keyring/`: Shared brick that keeps a vendor apt signing keyring in sync with its upstream, so key rotations heal on the next run instead of stalling apt on `NO_PUBKEY`
-  - `bootstrap/`: Entry-point role that orchestrates the others; owns the apt sources for vendor packages (`bootstrap_software_list`, deb822)
-  - `cli_tools/`: Unified CLI tool manager via [mise](https://mise.jdx.dev/) — installs uv, fzf, direnv, zoxide, eza, bat, chezmoi, starship, kubectl, terraform, awscli, k9s, node (22), pnpm (10); manages an atomic `~/.bashrc` block
-  - `cleanup_legacy/`: Removes pre-migration apt packages / binaries / repos superseded by mise
-  - `devtools/`: Development tools (Postman, etc.)
-  - `postman_cli/`: Postman **CLI** (`postman` collection runner) — pinned tarball from `dl-cli.pstmn.io`, owns `/usr/local/bin/postman` (the `devtools` role's desktop app is symlinked as `postman-app`)
-  - `obsidian/`: Obsidian notes app (pinned upstream `.deb` from GitHub releases)
-  - `syncthing/`: Syncthing file sync — installs the distro package, enables the systemd user service, manages GUI address/auth (never touches identity/pairings)
-  - `docker/`: Docker engine + compose plugin (deb822 source, keyring via `apt_keyring`)
-  - `git/`: Git configuration
-  - `libvirt/`: KVM + libvirt user stack (qemu-kvm, virt-manager, virtinst, ovmf, ...) — also consumed by `vagrant/` as a meta-dependency
-  - `vagrant/`: Vagrant + libvirt + vagrant-libvirt plugin (system-managed per ADR-0001)
-- `test/smoke/`: Vagrant + libvirt smoke harness for replaying the playbook on a clean VM
-- `docs/`:
-  - `guide-daily-usage.md`: End-to-end day-to-day workflow
-  - `guide-smoke-test-vagrant.md`: Smoke-test walkthrough
-  - `adr/`: Architecture Decision Records
-  - `superpowers/specs/`: Approved design docs for non-trivial role changes
-- `github/`, `terraform/`: Terraform configuration for GitHub resources (TiPunchLabs)
+| Layer | Responsible for | Where it is declared |
+|---|---|---|
+| **Ansible** | Orchestration and system configuration: hostname, `/etc/hosts`, systemd drop-ins (DNS, sudo, journald), roles for Docker, libvirt, Vagrant, Git, Syncthing, etc. Every change goes through a playbook run, so a laptop can be rebuilt from Git. | `playbook.yml` → `roles/bootstrap/` (entry point, includes the other roles) |
+| **APT** | System components and apps that ship as Debian packages (Docker, Chrome, VS Code, Brave, DBeaver, Trivy, libvirt, …), plus their deb822 sources and signing keyrings. | `roles/bootstrap/vars/main/essentials.yml`, `roles/bootstrap/vars/main/software.yml`, per-role vars |
+| **mise** | User-level CLI tools that have a mise backend: version selection, installation, activation in interactive shells. | `cli_tools_mise_tools` in `roles/cli_tools/vars/main.yml` |
+
+mise is **not** a universal package manager here. Anything that needs system integration (daemons, kernel modules, desktop entries, apt-maintained security updates) stays on APT on purpose. The reasoning is in [ADR-0001](docs/adr/0001-unified-cli-tool-management-with-mise.md).
 
 ```
 .
-├── ansible.cfg
-├── .envrc
-├── .pre-commit-config.yaml
-├── Makefile
-├── playbook.yml
-├── inventory.yml
-├── pyproject.toml
-├── uv.lock
-├── README.md / CONTRIBUTING.md / SECURITY.md / CODE_OF_CONDUCT.md
-├── bin/                        # vault helper + pre-commit hook scripts
-├── group_vars/all/             # vault + clear group vars
-├── github/  ·  terraform/      # IaC for the GitHub repo + adjacent infra
-├── docs/
-│   ├── guide-daily-usage.md
-│   ├── guide-smoke-test-vagrant.md
-│   ├── adr/                    # Architecture Decision Records
-│   └── superpowers/specs/      # Approved design docs
+├── playbook.yml / inventory.yml / ansible.cfg   # single local host, vault via bin/ansible-vault-pass.sh
+├── Makefile                                     # daily entry point (`make help`)
+├── group_vars/all/                              # vars.yml (public aliases) + vault/ (encrypted)
 ├── roles/
-│   ├── apt_keyring/            # vendor signing keyrings, re-synced every run
-│   ├── bootstrap/              # entry point + vendor apt sources
-│   ├── cli_tools/              # mise-managed user CLI tools + shell hooks block
-│   ├── cleanup_legacy/         # pre-mise eviction
-│   ├── devtools/  ·  docker/  ·  git/  ·  libvirt/  ·  obsidian/  ·  syncthing/  ·  vagrant/
-└── test/smoke/                 # Vagrant + libvirt replay harness
+│   ├── bootstrap/        # entry point, base packages, vendor apt sources, system drop-ins
+│   ├── apt_keyring/      # vendor signing keyrings, re-synced every run
+│   ├── cli_tools/        # mise install + config + managed ~/.bashrc block
+│   ├── cleanup_legacy/   # removes pre-mise installs (destructive, see below)
+│   └── devtools · docker · git · libvirt · obsidian · postman_cli · syncthing · vagrant
+├── test/smoke/           # Vagrant + libvirt VM to replay the playbook safely
+├── uninstall-opera.yml   # one-shot maintenance playbook
+├── github-terraform/     # Terraform for the GitHub repository settings
+└── docs/                 # guides + ADRs
 ```
 
-## Prerequisites
+## Quick Start
 
-- Debian-based system (Debian 12, Ubuntu...)
-- Python 3.10 or higher
-- [uv](https://docs.astral.sh/uv/) - Python package manager
-- [direnv](https://direnv.net/) (optional, for automatic environment activation)
+### 1. Prerequisites
 
-## Installation
+- Debian or Ubuntu (the playbook asserts a Debian-family OS), sudo rights
+- [uv](https://docs.astral.sh/uv/), `make`, `git`
+- [`pass`](https://www.passwordstore.org/) holding the vault password at `ansible/vault`
+- [direnv](https://direnv.net/) (optional, recommended)
 
-### 1. Clone the Repository
+### 2. Clone and install dependencies
 
 ```sh
 git clone https://github.com/TiPunchLabs/laptop-bootstrap.git
 cd laptop-bootstrap
+direnv allow                 # creates .venv and runs `uv sync`
+# or, without direnv:
+uv sync && source .venv/bin/activate
+pre-commit install
 ```
 
-### 2. Install Dependencies
+### 3. Secrets
 
-Using direnv (recommended):
+`ansible.cfg` sets `vault_password_file = ./bin/ansible-vault-pass.sh`, which runs `pass show ansible/vault` (override the entry with `ANSIBLE_VAULT_PASS_PATH`). No password is stored in the repo. Check that it resolves without printing it:
 
 ```sh
-direnv allow
+./bin/ansible-vault-pass.sh >/dev/null && echo "vault password OK"
+make vault-view              # decrypts group_vars/all/vault/main.yml to the terminal
 ```
 
-Or manually with uv:
+Without the vault, `group_vars/all/vars.yml` falls back to placeholder values.
+
+### 4. Check before applying
 
 ```sh
-uv sync
-source .venv/bin/activate
+make help
+ansible-playbook -i inventory.yml playbook.yml --tags docker --check --diff
 ```
 
-### 3. Configure Ansible Vault
+> ⚠️ `--check` is a preview, not a guarantee: tasks that depend on commands run earlier (mise listing, downloads) are skipped or approximated. `--diff` can print file contents; don't use it on a role that touches files holding secrets (for example `~/.bashrc`).
 
-If files are encrypted with `ansible-vault`, the password is automatically configured via `.envrc` using `pass`:
+### 5. First run
 
 ```sh
-# The .envrc file exports ANSIBLE_VAULT_PASSWORD from pass
-export ANSIBLE_VAULT_PASSWORD=$(pass ansible/vault)
+make play                    # full playbook, see the scope below
 ```
 
-### 4. Run the Playbook
+A full run (no tags) does all of this: `apt upgrade`, sets the hostname, rewrites `/etc/hosts`, installs base packages and vendor apps, configures DNS/sudo/journald drop-ins, runs every role, **including `cleanup_legacy`**, and finally `cli_tools`. On an already provisioned laptop, prefer a targeted tag (see [Daily Operations](#daily-operations)).
 
-The Makefile is the recommended entry point — `make help` lists every target:
+### 6. Validate
 
 ```sh
-make play                       # full playbook
-make play-cli-tools             # only the cli_tools role
-make play TAGS=docker,git       # arbitrary tag combination
+exec bash                    # reload ~/.bashrc so mise activation applies
+mise ls                      # every declared tool, no "missing"
+make play TAGS=<tag>         # second run of the same scope: expect changed=0
 ```
 
-Equivalent low-level invocation:
+## Daily Operations
+
+| Kind | Command | Effect |
+|---|---|---|
+| Diagnostic | `make help`, `make lint`, `make lint-ansible`, `make vault-view`, `make smoke-status` | Read-only on the laptop |
+| Diagnostic | `ansible-playbook -i inventory.yml playbook.yml --tags <tag> --check` | Preview (the Makefile has no check target) |
+| Modifies the system | `make play TAGS=<tags>`, `make play-<role>` | Applies the selected roles |
+| **Removes components** | `make play-cleanup-legacy`, `make play-cli-tools`, `make play` (no tags), `make uninstall-opera` | Purges packages, repos, keyrings, binaries |
+| Local cleanup | `make clean` | Deletes `*.retry` and local `.ansible`/pre-commit caches |
+
+### Available Tags
+
+| Tag | Scope |
+|---|---|
+| `mise` | `cli_tools` only. **Safe default for CLI tool changes.** |
+| `cli-tools` | `cleanup_legacy` **then** `cli_tools` (also what `make play-cli-tools` runs) |
+| `cleanup-legacy` | `cleanup_legacy` only |
+| `update` | `apt update` + `apt upgrade` |
+| `docker`, `git`, `devtools`, `postman-cli`, `obsidian`, `syncthing`, `libvirt`, `vagrant` | The role of the same name (`vagrant` pulls in `libvirt`) |
+| `internal-dns`, `sudo`, `journald` | The matching systemd/sudo drop-in from `bootstrap` |
+
+Base packages, vendor apps (`software.yml`), hostname and `/etc/hosts` have no tag: they only run in a full, untagged run.
+
+### Managing CLI tools with mise
+
+There are three distinct operations:
+
+| Goal | How | What happens |
+|---|---|---|
+| Change the declaration (add/remove/pin a tool) | Edit `cli_tools_mise_tools`, then `make play TAGS=mise` | Re-renders `~/.config/mise/config.toml`, installs missing tools, **uninstalls tools no longer declared** |
+| Install declared tools on a fresh machine | `make play TAGS=mise` | `mise install --yes` runs only when the config changed or a tool is missing |
+| Upgrade tools already installed | `mise upgrade` (or `mise upgrade <tool>`) | Ansible never does this: `latest` is resolved at install time and **not** refreshed by later playbook runs |
+
+Node.js and pnpm are pinned to a major version (`node: "22"`, `pnpm: "10"`), because `latest` would track Node's non-LTS line. `mise upgrade node pnpm` stays within those majors. To change the major, edit the value and run `make play TAGS=mise`.
+
+### Testing in a VM
 
 ```sh
-uv run ansible-playbook -i inventory.yml playbook.yml --tags update
-./bin/local_laptop.sh update    # legacy wrapper, same effect
+make smoke-up                       # create the VM (~10 min the first time)
+make smoke-replay TAGS=mise         # rsync code + replay; run twice, expect changed=0
+make smoke-ssh / make smoke-down
 ```
 
-For the daily edit → verify → ship loop, see [`docs/guide-daily-usage.md`](docs/guide-daily-usage.md).
+The smoke VM skips the `vagrant` tag by default (nested virtualization). Full walkthrough: [`docs/guide-smoke-test-vagrant.md`](docs/guide-smoke-test-vagrant.md), cheatsheet: [`test/smoke/README.md`](test/smoke/README.md).
 
-## Available Tags
+## Safety & Compatibility
 
-| Tag | Description |
-|-----|-------------|
-| `update` | Update and upgrade system packages |
-| `docker` | Install Docker and Docker Compose |
-| `git` | Configure Git |
-| `devtools` | Install development tools (Postman) |
-| `postman-cli` | Install the pinned Postman CLI (`postman` command) |
-| `syncthing` | Install Syncthing + enable its user service + manage GUI settings |
-| `libvirt` | Install KVM + libvirt user stack (qemu-kvm, virt-manager, virtinst, ovmf, ...) |
-| `vagrant` | Install Vagrant + the vagrant-libvirt plugin (depends on `libvirt`) |
-| `cleanup-legacy` | Remove pre-mise installations |
-| `cli-tools` | Install/update all CLI tools via mise |
-| `mise` | Alias for `cli-tools` |
-| `internal-dns` | Configure internal DNS drop-in for systemd-resolved |
-| `sudo` | Configure sudo defaults drop-in (timestamp_timeout) |
-| `journald` | Configure systemd-journald drop-in (persistent log defaults) |
+### `cleanup_legacy`
 
-## Migrating from a Pre-mise Laptop
+This role purges the apt packages `fzf bat direnv eza kubectl terraform k9s`, the Kubernetes apt source, old keyrings under `/usr/share/keyrings/`, `/usr/local/bin/{starship,aws,aws_completer,kubectl-convert}`, `/usr/local/aws-cli`, `~/.local/bin/uv`, `~/.tool-versions`, and a few orphan `~/.bashrc` lines (full list in `roles/cleanup_legacy/vars/main.yml`). It is idempotent, but it **deletes things**, and it runs with both `cleanup-legacy` and `cli-tools`. Use `mise` when you only mean to touch mise tools.
 
-If you are upgrading a laptop that was provisioned before [ADR-0001](docs/adr/0001-unified-cli-tool-management-with-mise.md), run the two tags **in this order**:
+Run it only after `docker` and `vagrant` have run at least once since the keyring move (a full run does this in the right order). Otherwise their sources may still point at the keyrings it removes: `make play TAGS=docker,vagrant` first.
+
+### APT keyrings
+
+`apt_keyring` rebuilds each vendor keyring under `/etc/apt/keyrings/` on every run and installs it only when the bytes differ, so an upstream key rotation heals on the next run instead of leaving apt on `NO_PUBKEY` ([`roles/apt_keyring/README.md`](roles/apt_keyring/README.md)).
+
+**Chrome is the exception.** Google's package (postinst + `/etc/cron.daily/google-chrome`) owns `/usr/share/keyrings/google-chrome.gpg` and rewrites `google-chrome.sources` to sign with it. Never delete that file: `apt update` breaks until the cron recreates it. Because the playbook and Chrome's cron both write that source, a full run may report a change on it.
+
+### Node.js / pnpm and older installs
+
+The NodeSource `nodejs` apt package and the standalone pnpm under `~/.local/share/pnpm` are **kept on purpose**. The pnpm global packages still live in `PNPM_HOME`.
+
+- **Interactive shells** (`~/.bashrc` → `mise activate`): the mise `node`/`pnpm` come first. `cli_tools` moves the pnpm installer's `PNPM_HOME` entry to the end of `PATH` so it can't shadow mise.
+- **Non-interactive contexts** (cron, systemd units, `bash -c`, IDE tasks that don't read `~/.bashrc`): mise is not activated, so `/usr/bin/node` and the standalone pnpm still resolve.
 
 ```sh
-uv run ansible-playbook playbook.yml --tags cleanup-legacy
-uv run ansible-playbook playbook.yml --tags cli-tools
-exec bash   # reload PATH so mise shims take precedence over /usr/local/bin
+type -a node pnpm            # first hit under ~/.local/share/mise/installs/
+mise current node pnpm
 ```
 
-> ⚠️ **Transition window** — between `cleanup-legacy` and `cli-tools`, the following tools are **temporarily absent**: `starship`, `direnv`, `uv`, `eza`, `bat`, `fzf`, `kubectl`, `terraform`. This is expected. Do not close the terminal or rely on those commands until `cli-tools` completes. Running the two tags back-to-back keeps the window to a few minutes.
-
-> 💡 **Note on `exec bash`** — `cli_tools` adds `eval "$(mise activate bash)"` to `~/.bashrc`, but the current shell only picks it up after re-reading the file. Without `exec bash` (or opening a new terminal), `which kubectl` may still resolve to the old `/usr/local/bin/kubectl` binary instead of the mise shim.
+**Rollback:** remove the `node`/`pnpm` lines from `cli_tools_mise_tools` and run `make play TAGS=mise`. The prune step uninstalls them from mise, and the older binaries resolve again after `exec bash`.
 
 ### Manual `.bashrc` cleanup (one-time)
 
-`cli_tools` installs its shell hooks as a marker-bounded block (`ANSIBLE MANAGED: cli_tools shell hooks`). If your `.bashrc` already contains standalone copies from pre-mise installs, the role does **not** auto-remove them (doing so would corrupt the managed block on subsequent runs — see the design note in [`docs/superpowers/specs/2026-04-21-cli-tools-shell-hooks-design.md`](docs/superpowers/specs/2026-04-21-cli-tools-shell-hooks-design.md)). Delete these literal lines by hand, once per laptop:
+`cli_tools` owns a marker-bounded block (`ANSIBLE MANAGED: cli_tools shell hooks`). Only laptops provisioned before that block existed may still have stray copies of `eval "$(~/.local/bin/mise activate bash)"`, `eval "$(starship init bash)"` or `eval "$(direnv hook bash)"` outside it. The role does not remove those lines (see [the design note](docs/superpowers/specs/2026-04-21-cli-tools-shell-hooks-design.md)); delete them by hand, then run `make play TAGS=mise`.
 
-```sh
-# Lines to remove from ~/.bashrc if present outside the `ANSIBLE MANAGED` block:
-eval "$(~/.local/bin/mise activate bash)"
-eval "$(starship init bash)"
-eval "$(direnv hook bash)"
-```
+### Other one-time notes
 
-### `kvm` group membership (one-time, post-libvirt-role)
+- After the first `libvirt` run, your user joins the `kvm`/`libvirt` groups: log out and back in (or `newgrp kvm`).
+- Migrating a pre-mise laptop is just a `cli-tools` run (cleanup then install), followed by `exec bash`. Between the two steps the purged tools are briefly missing. Already-migrated laptops don't need any of this.
+- `bin/local_laptop.sh` is a legacy wrapper with an outdated tag list; use the Makefile.
 
-On the first playbook run after the `libvirt` role landed, your user is added to the `kvm` group (in addition to `libvirt`). The new membership only takes effect for **new** sessions — run `newgrp kvm` in the current shell or simply log out and back in.
+## Documentation
 
-After deletion, re-run `make play-cli-tools` to regenerate a clean managed block.
+- [Daily usage guide](docs/guide-daily-usage.md): what to edit for each intent, the edit → verify → apply loop, troubleshooting
+- [Smoke-test guide](docs/guide-smoke-test-vagrant.md): VM harness in depth
+- [Architecture Decision Records](docs/adr/): notably [ADR-0001](docs/adr/0001-unified-cli-tool-management-with-mise.md) (mise)
+- [CONTRIBUTING.md](CONTRIBUTING.md) · [SECURITY.md](SECURITY.md) · [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 
-### Node.js and pnpm under mise
+## Security
 
-`node` (22) and `pnpm` (10) are declared in `cli_tools_mise_tools` like every other CLI tool (see [ADR-0001](docs/adr/0001-unified-cli-tool-management-with-mise.md#amendment-2026-10-23--nodejs-and-pnpm)). Pre-existing installs (NodeSource `nodejs` apt package, standalone pnpm under `~/.local/share/pnpm`) are **left in place**: mise shadows them in interactive shells, and they remain the fallback for non-interactive contexts. `PNPM_HOME` still holds pnpm global packages.
-
-```sh
-# Verify (in a fresh shell: exec bash)
-type -a node npm pnpm     # first hit must be under ~/.local/share/mise/installs/
-mise current node pnpm    # 22.x / 10.x
-mise which node           # real binary path behind the PATH entry
-
-# Update within the pinned major (22.x / 10.x)
-mise upgrade node pnpm
-
-# Change major: edit cli_tools_mise_tools, then (mise tag = cli_tools only, no cleanup_legacy)
-make play TAGS=mise
-```
-
-**Rollback** — delete the `node` / `pnpm` lines from `cli_tools_mise_tools` and run `make play TAGS=mise`: the prune step uninstalls them from mise, and `/usr/bin/node` + `~/.local/share/pnpm/pnpm` resolve again after `exec bash`.
-
-## Security & Code Quality
-
-The project uses `pre-commit` to enforce code quality and security checks.
-
-### Hooks configured
-
-- **YAML**: yamllint, check-yaml, document start marker
-- **Shell**: shellcheck, shfmt
-- **Ansible**: ansible-lint, vault encryption check
-- **Terraform**: terraform_fmt, terraform_validate, terraform_tflint
-- **Python**: flake8
-- **General**: trailing-whitespace, end-of-file-fixer, detect-private-key
-
-### Usage
-
-```sh
-# Install hooks (run once)
-pre-commit install
-
-# Run all hooks on all files
-make lint
-# or directly:
-pre-commit run --all-files
-
-# Run only ansible-lint (faster feedback while editing a role)
-make lint-ansible
-
-# Run a specific hook
-pre-commit run ansible-lint --all-files
-
-# Update hooks to latest versions
-pre-commit autoupdate
-```
-
-## Architecture Decisions
-
-See [`docs/adr/`](docs/adr/) for the list of Architecture Decision Records. Notably:
-
-- [ADR-0001](docs/adr/0001-unified-cli-tool-management-with-mise.md) — Unified CLI tool management with mise
-
-## Testing
-
-A smoke-test harness replays the playbook inside a clean Ubuntu VM via Vagrant + libvirt, so you can validate changes without touching your real laptop:
-
-```sh
-make smoke-up                   # boot VM, install ansible, run playbook (~10 min first time)
-make smoke-replay               # rsync code + replay
-make smoke-replay TAGS=docker   # replay only one tag
-make smoke-down                 # clean up
-```
-
-See [`test/smoke/README.md`](test/smoke/README.md) for the cheatsheet and [`docs/guide-smoke-test-vagrant.md`](docs/guide-smoke-test-vagrant.md) for the full walkthrough (architecture, troubleshooting, vault handling).
-
-## Contributors
-
-- **Author**: Xavier GUERET [![GitHub followers](https://img.shields.io/github/followers/xgueret?style=social)](https://github.com/xgueret) [![Twitter Follow](https://img.shields.io/twitter/follow/xgueret?style=social)](https://x.com/hixmaster) [![LinkedIn](https://img.shields.io/badge/LinkedIn-Connect-blue?style=flat&logo=linkedin)](https://www.linkedin.com/in/xavier-gueret-47bb3019b/)
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a [Pull Request](https://github.com/TiPunchLabs/laptop-bootstrap/pulls).
+- Secrets live only in `group_vars/all/vault/main.yml` (Ansible Vault). Edit them with `make vault-edit`. The vault password comes from `pass`, and `.envrc` reads its tokens from `pass` too, so nothing is stored in plain text.
+- `pre-commit` (run by `make lint`) enforces yamllint, ansible-lint, shellcheck/shfmt, Terraform fmt/validate/tflint, flake8, `detect-private-key` and a vault-encryption check that blocks plaintext vault files.
+- Vendor keyrings are validated with `gpg --show-keys` before installation (an HTML error page fails the run).
+- Report vulnerabilities as described in [SECURITY.md](SECURITY.md).
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](https://github.com/TiPunchLabs/laptop-bootstrap/blob/main/LICENSE) file for details.
+MIT, see [LICENSE](LICENSE). Author: Xavier Gueret ([@xgueret](https://github.com/xgueret)).
