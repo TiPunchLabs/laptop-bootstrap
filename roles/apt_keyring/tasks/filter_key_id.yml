@@ -1,0 +1,44 @@
+---
+# Some vendors serve a bundle holding several keys (dbeaver does). apt only
+# needs the signing one, and a narrow `signed_by` file means a stray key in
+# the bundle can never be used to validate a repository.
+
+- name: Create a throwaway GNUPG home
+  ansible.builtin.file:
+    path: "{{ apt_keyring_tmp.path }}/gnupg"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  changed_when: false
+  check_mode: false
+
+- name: Import the candidate keyring into the throwaway GNUPG home
+  ansible.builtin.command:
+    cmd: >
+      gpg --batch --quiet
+          --homedir {{ apt_keyring_tmp.path }}/gnupg
+          --import {{ apt_keyring_tmp.path }}/candidate
+  changed_when: false
+  check_mode: false
+
+- name: Export only the expected key id
+  ansible.builtin.command:
+    cmd: >
+      gpg --batch --yes
+          --homedir {{ apt_keyring_tmp.path }}/gnupg
+          --output {{ apt_keyring_tmp.path }}/filtered
+          --export {{ apt_keyring_key_id }}
+  changed_when: false
+  check_mode: false
+
+- name: Promote the filtered export to the candidate keyring
+  ansible.builtin.copy:
+    src: "{{ apt_keyring_tmp.path }}/filtered"
+    dest: "{{ apt_keyring_tmp.path }}/candidate"
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0644"
+  changed_when: false
+  check_mode: false

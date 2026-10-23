@@ -1,0 +1,17 @@
+---
+galaxy_info:
+  author: xgueret
+  description: Keep an apt signing keyring in sync with its upstream, so vendor key rotations heal on the next run
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - jammy
+        - noble
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+
+dependencies: []

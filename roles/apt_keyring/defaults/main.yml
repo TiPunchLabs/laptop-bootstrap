@@ -1,0 +1,17 @@
+---
+# Short identifier, used to name the staging directory. Usually the vendor name.
+apt_keyring_name: ""
+
+# Where the dearmored keyring is installed — the path `signed_by` points at.
+apt_keyring_path: ""
+
+# URL serving the vendor signing key.
+apt_keyring_url: ""
+
+# "ascii" for an armored key (.asc / public.key), "gpg" for an already
+# dearmored binary keyring.
+apt_keyring_format: "ascii"
+
+# Optional. When the vendor ships a bundle of several keys, re-export only
+# this one so `signed_by` stays narrow. Empty means "keep everything served".
+apt_keyring_key_id: ""
