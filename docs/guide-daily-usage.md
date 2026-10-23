@@ -61,6 +61,7 @@ The "what do I edit?" table — keep it open in a tab during the first month:
 | ------------------------------------ | --------------------------------------------- | -------------------------------------- |
 | Add / remove a CLI tool              | `roles/cli_tools/vars/main.yml`               | `cli_tools_mise_tools` dict            |
 | Change CLI tool version              | same file                                     | `tool: <semver>` instead of `latest`   |
+| Bump Node.js / pnpm major            | same file                                     | `node: "22"` / `pnpm: "10"` (major-pinned, see ADR-0001 amendment) |
 | Add an apt repo + package            | `roles/bootstrap/vars/main/software.yml`      | append entry to `bootstrap_software_list` |
 | Change docker repo / arch            | `roles/docker/vars/main.yml`                  | `docker_deb822` / `docker_gpg`         |
 | Change HashiCorp/vagrant repo        | `roles/vagrant/vars/main.yml`                 | `vagrant_hashicorp_deb822`             |

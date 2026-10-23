@@ -34,7 +34,7 @@ An earlier draft of `cli_tools` proposed combining apt + install scripts for eig
 
 Scope:
 
-- **In scope (mise-managed):** `uv`, `fzf`, `direnv`, `zoxide`, `eza`, `bat`, `chezmoi`, `starship`, `kubectl`, `terraform`, `awscli`.
+- **In scope (mise-managed):** `uv`, `fzf`, `direnv`, `zoxide`, `eza`, `bat`, `chezmoi`, `starship`, `kubectl`, `terraform`, `awscli`, `k9s`; since the [2026-10-23 amendment](#amendment-2026-10-23--nodejs-and-pnpm), `node` and `pnpm`.
 - **Out of scope (system-managed):** `vagrant`.
   - Vagrant depends on the `vagrant-libvirt` gem plugin, which links against `libvirt-dev` system headers. The plugin is installed via `vagrant plugin install` and resolves the `vagrant` binary through system `PATH`. Using a mise-shimmed `vagrant` breaks plugin discovery and complicates the libvirt group membership model. Keeping vagrant on the HashiCorp apt repo keeps the plugin + `libvirt` group wiring stable.
 
@@ -110,6 +110,19 @@ exec bash
 
 - **Transition window**: between the two tag runs, `starship`, `direnv`, `uv`, `eza`, `bat`, `fzf`, `kubectl`, `terraform` are uninstalled and not yet reinstalled. Any shell or tooling that depends on them will fail during that gap. Do not interleave other work.
 - **`exec bash` is mandatory**: `cli_tools` writes `eval "$(mise activate bash)"` into `~/.bashrc`. The running shell keeps the old `PATH` (including `/usr/local/bin` where stale binaries may still live on partially-cleaned systems) until the rc file is re-sourced. `exec bash` replaces the current shell in place — opening a new terminal is equivalent.
+
+------
+
+## Amendment 2026-10-23 — Node.js and pnpm
+
+**Context.** Node.js came from the NodeSource apt repo and pnpm from its standalone install script — neither managed by this project. The Ubuntu 26.04 release upgrade disabled the NodeSource source, freezing Node.js at 22.23.3 with no further security updates.
+
+**Decision.** Declare `node = "22"` (backend `core:node`) and `pnpm = "10"` (backend `aqua:pnpm/pnpm`, a standalone binary) in `cli_tools_mise_tools`.
+
+- **Major-pinned, not `latest`**: node `latest` follows the non-LTS Current line. 22 matches the installed version and the projects' CI (`setup-node` 22, `engines` `>=22.12`); a major bump is its own change. Patch/minor updates come from `mise upgrade`. Exact pins (`22.x.y`) were rejected: reproducible, but security patches would wait for a manual edit.
+- **pnpm via mise, not Corepack**: Corepack ships disabled up to Node 24 and is removed from Node 25+. pnpm itself still honours each project's `packageManager` field.
+- **Idiomatic version files stay off** (`.nvmrc`, `package.json`): enabling them would make mise demand e.g. Node 20 for the projects pinning it.
+- **No cleanup yet**: the apt `nodejs` package (used by a Claude Code MCP server via `/usr/bin/node`) and the standalone pnpm stay as fallbacks for non-interactive shells. Their removal is a separate `cleanup_legacy` change, once mise shims are available outside interactive shells.
 
 ------
 
