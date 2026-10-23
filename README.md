@@ -16,6 +16,7 @@ This project uses Ansible to automate the installation and configuration of a la
   - `check_ansible_vault.sh`: Pre-commit hook for vault encryption
   - `add-yaml-document-start.sh`: Pre-commit hook for YAML formatting
 - `roles/`: Contains the Ansible roles
+  - `apt_keyring/`: Shared brick that keeps a vendor apt signing keyring in sync with its upstream, so key rotations heal on the next run instead of stalling apt on `NO_PUBKEY`
   - `bootstrap/`: Entry-point role that orchestrates the others; owns the apt sources for vendor packages (`bootstrap_software_list`, deb822)
   - `cli_tools/`: Unified CLI tool manager via [mise](https://mise.jdx.dev/) — installs uv, fzf, direnv, zoxide, eza, bat, chezmoi, starship, kubectl, terraform, awscli, k9s; manages an atomic `~/.bashrc` block
   - `cleanup_legacy/`: Removes pre-migration apt packages / binaries / repos superseded by mise
@@ -23,7 +24,7 @@ This project uses Ansible to automate the installation and configuration of a la
   - `postman_cli/`: Postman **CLI** (`postman` collection runner) — pinned tarball from `dl-cli.pstmn.io`, owns `/usr/local/bin/postman` (the `devtools` role's desktop app is symlinked as `postman-app`)
   - `obsidian/`: Obsidian notes app (pinned upstream `.deb` from GitHub releases)
   - `syncthing/`: Syncthing file sync — installs the distro package, enables the systemd user service, manages GUI address/auth (never touches identity/pairings)
-  - `docker/`: Docker engine + compose plugin (deb822 source, atomic GPG dearmor)
+  - `docker/`: Docker engine + compose plugin (deb822 source, keyring via `apt_keyring`)
   - `git/`: Git configuration
   - `libvirt/`: KVM + libvirt user stack (qemu-kvm, virt-manager, virtinst, ovmf, ...) — also consumed by `vagrant/` as a meta-dependency
   - `vagrant/`: Vagrant + libvirt + vagrant-libvirt plugin (system-managed per ADR-0001)
@@ -55,6 +56,7 @@ This project uses Ansible to automate the installation and configuration of a la
 │   ├── adr/                    # Architecture Decision Records
 │   └── superpowers/specs/      # Approved design docs
 ├── roles/
+│   ├── apt_keyring/            # vendor signing keyrings, re-synced every run
 │   ├── bootstrap/              # entry point + vendor apt sources
 │   ├── cli_tools/              # mise-managed user CLI tools + shell hooks block
 │   ├── cleanup_legacy/         # pre-mise eviction

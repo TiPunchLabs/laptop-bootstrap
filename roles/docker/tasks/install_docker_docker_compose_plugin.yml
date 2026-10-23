@@ -20,45 +20,19 @@
       - runc
     state: absent
 
-- name: Check if the key file exists for Docker
-  ansible.builtin.stat:
-    path: "{{ docker_gpg.path }}"
-  register: docker_key_exists
-
-- name: Download Docker official GPG key (ASCII)
-  ansible.builtin.get_url:
-    url: "{{ docker_gpg.url }}"
-    dest: "{{ docker_gpg.path }}.asc"
-    mode: '0644'
-  when: docker_gpg.url is defined and not docker_key_exists.stat.exists
-
-# Dearmor to a staging file then rename into place — see the same
-# pattern in roles/bootstrap/tasks/install_software.yml for the
-# motivation (partial-write recovery).
-- name: Dearmor Docker key to staging file (.new)
-  ansible.builtin.command:
-    cmd: "gpg --batch --yes --dearmor -o {{ docker_gpg.path }}.new {{ docker_gpg.path }}.asc"
-  args:
-    creates: "{{ docker_gpg.path }}"
-  register: docker_dearmor
-  when: docker_gpg.url is defined and not docker_key_exists.stat.exists
-
-- name: Atomically move dearmored Docker key into place  # noqa: no-handler
-  ansible.builtin.copy:
-    src: "{{ docker_gpg.path }}.new"
-    dest: "{{ docker_gpg.path }}"
-    remote_src: true
-    mode: '0644'
-  when: docker_dearmor is changed
-
-- name: Cleanup Docker dearmor staging and .asc files  # noqa: no-handler
-  ansible.builtin.file:
-    path: "{{ item }}"
-    state: absent
-  loop:
-    - "{{ docker_gpg.path }}.new"
-    - "{{ docker_gpg.path }}.asc"
-  when: docker_dearmor is changed
+# Delegated to apt_keyring so a Docker key rotation heals on the next run
+# instead of leaving apt stuck on NO_PUBKEY — see roles/apt_keyring/README.md.
+- name: Install the Docker signing key
+  ansible.builtin.include_role:
+    name: apt_keyring
+    apply:
+      tags:
+        - docker
+  vars:
+    apt_keyring_name: docker
+    apt_keyring_path: "{{ docker_gpg.path }}"
+    apt_keyring_url: "{{ docker_gpg.url }}"
+    apt_keyring_format: ascii
 
 - name: Configure Docker apt source (deb822)
   ansible.builtin.deb822_repository:

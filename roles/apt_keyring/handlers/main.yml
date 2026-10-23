@@ -1,0 +1,4 @@
+---
+- name: Refresh apt cache after keyring rotation
+  ansible.builtin.apt:
+    update_cache: true

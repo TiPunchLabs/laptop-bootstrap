@@ -9,7 +9,6 @@ cleanup_legacy_apt_packages:
   - terraform
   - k9s
 
-# HashiCorp sources/keyring stay — still used by the vagrant role.
 # Chrome/Trivy `.list` files are auto-removed by install_software.yml when the
 # matching deb822 source is configured, so they don't need to appear here.
 cleanup_legacy_apt_sources:
@@ -17,11 +16,21 @@ cleanup_legacy_apt_sources:
 
 # Old keyrings under /usr/share/keyrings are no longer referenced once the
 # bootstrap role rewrites the corresponding `.sources` to point at
-# /etc/apt/keyrings/<name>.gpg.
+# /etc/apt/keyrings/<name>.gpg. This role runs after docker and vagrant in
+# bootstrap/tasks/main.yml, so their `.sources` already carry the new
+# Signed-By path by the time the old file is removed here — on a full run.
+# `--tags cli-tools` skips docker and vagrant, so on a host that never ran
+# them since the keyring move, run `--tags docker,vagrant` first.
+#
+# Never list /usr/share/keyrings/google-chrome.gpg: Chrome's postinst and its
+# daily cron (/etc/cron.daily/google-chrome) rewrite google-chrome.sources to
+# Signed-By that path and recreate the file. Removing it breaks `apt update`
+# until the cron runs again, then reappears — never idempotent.
 cleanup_legacy_apt_keyrings:
   - /usr/share/keyrings/kubernetes-apt-keyring.gpg
-  - /usr/share/keyrings/google-chrome.gpg
   - /usr/share/keyrings/trivy.gpg
+  - /usr/share/keyrings/docker-archive-keyring.gpg
+  - /usr/share/keyrings/hashicorp-archive-keyring.gpg
 
 cleanup_legacy_paths:
   - /usr/local/bin/starship
