@@ -18,7 +18,7 @@ This project uses Ansible to automate the installation and configuration of a la
 - `roles/`: Contains the Ansible roles
   - `apt_keyring/`: Shared brick that keeps a vendor apt signing keyring in sync with its upstream, so key rotations heal on the next run instead of stalling apt on `NO_PUBKEY`
   - `bootstrap/`: Entry-point role that orchestrates the others; owns the apt sources for vendor packages (`bootstrap_software_list`, deb822)
-  - `cli_tools/`: Unified CLI tool manager via [mise](https://mise.jdx.dev/) — installs uv, fzf, direnv, zoxide, eza, bat, chezmoi, starship, kubectl, terraform, awscli; manages an atomic `~/.bashrc` block
+  - `cli_tools/`: Unified CLI tool manager via [mise](https://mise.jdx.dev/) — installs uv, fzf, direnv, zoxide, eza, bat, chezmoi, starship, kubectl, terraform, awscli, k9s; manages an atomic `~/.bashrc` block
   - `cleanup_legacy/`: Removes pre-migration apt packages / binaries / repos superseded by mise
   - `devtools/`: Development tools (Postman, etc.)
   - `postman_cli/`: Postman **CLI** (`postman` collection runner) — pinned tarball from `dl-cli.pstmn.io`, owns `/usr/local/bin/postman` (the `devtools` role's desktop app is symlinked as `postman-app`)

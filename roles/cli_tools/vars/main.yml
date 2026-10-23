@@ -22,6 +22,7 @@ cli_tools_mise_tools:
   kubectl: latest
   terraform: latest
   awscli: latest
+  k9s: latest
 
 # Shell hooks managed as an ordered, atomic block in ~/.bashrc. mise must come
 # first so starship/direnv/fzf can resolve mise-managed binaries on PATH.

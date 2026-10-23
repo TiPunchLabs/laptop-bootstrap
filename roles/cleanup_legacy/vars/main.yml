@@ -7,6 +7,7 @@ cleanup_legacy_apt_packages:
   - eza
   - kubectl
   - terraform
+  - k9s
 
 # Chrome/Trivy `.list` files are auto-removed by install_software.yml when the
 # matching deb822 source is configured, so they don't need to appear here.
@@ -40,6 +41,9 @@ cleanup_legacy_paths:
 
 cleanup_legacy_user_paths:
   - "/home/{{ bootstrap_local_user }}/.local/bin/uv"
+  # Hand-made asdf-style pin file: mise reads it and reports its tools as
+  # "missing". Tool versions live only in cli_tools_mise_tools.
+  - "/home/{{ bootstrap_local_user }}/.tool-versions"
 
 # Orphan bashrc lines left by pre-mise installs. MUST NOT overlap with
 # cli_tools_bashrc_block content (e.g., do NOT list `eval "$(starship init bash)"`
