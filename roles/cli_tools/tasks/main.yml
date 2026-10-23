@@ -88,3 +88,16 @@
     mode: '0644'
   become: true
   become_user: "{{ bootstrap_local_user }}"
+
+# The PNPM_HOME block written by pnpm's standalone installer prepends to PATH
+# after `mise activate` ran, and mise keeps entries added after activation
+# ahead of its own — the standalone pnpm then shadows mise's. Append instead:
+# PNPM_HOME stays on PATH for the global bins, mise's pnpm wins. No-op when
+# the installer block is absent.
+- name: Move PNPM_HOME behind mise-managed binaries in .bashrc
+  ansible.builtin.replace:
+    path: "/home/{{ bootstrap_local_user }}/.bashrc"
+    regexp: '^(\s*\*\) export PATH=)"\$PNPM_HOME:\$PATH"(\s*;;)$'
+    replace: '\1"$PATH:$PNPM_HOME"\2'
+  become: true
+  become_user: "{{ bootstrap_local_user }}"
