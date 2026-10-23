@@ -4,11 +4,19 @@
     name: apt-transport-https
     state: present
 
-- name: Install HashiCorp GPG key
-  ansible.builtin.shell:
-    cmd: "set -o pipefail && curl -fsSL {{ vagrant_hashicorp_gpg.key_url }} | gpg --dearmor -o {{ vagrant_hashicorp_gpg.key_path }}"
-    executable: /bin/bash
-    creates: "{{ vagrant_hashicorp_gpg.key_path }}"
+# Delegated to apt_keyring so a HashiCorp key rotation heals on the next run
+# instead of leaving apt stuck on NO_PUBKEY — see roles/apt_keyring/README.md.
+- name: Install the HashiCorp signing key
+  ansible.builtin.include_role:
+    name: apt_keyring
+    apply:
+      tags:
+        - vagrant
+  vars:
+    apt_keyring_name: hashicorp
+    apt_keyring_path: "{{ vagrant_hashicorp_gpg.key_path }}"
+    apt_keyring_url: "{{ vagrant_hashicorp_gpg.key_url }}"
+    apt_keyring_format: ascii
 
 - name: Configure HashiCorp apt source (deb822)
   ansible.builtin.deb822_repository:

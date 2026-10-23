@@ -1,6 +1,6 @@
 ---
 vagrant_hashicorp_gpg:
-  key_path: /usr/share/keyrings/hashicorp-archive-keyring.gpg
+  key_path: /etc/apt/keyrings/hashicorp.gpg
   key_url: https://apt.releases.hashicorp.com/gpg
 
 vagrant_hashicorp_deb822:

@@ -1,0 +1,138 @@
+---
+# Re-sync an apt signing keyring from upstream on every run.
+#
+# The per-role implementations this replaces all gated the download on
+# `creates:` or a `stat` of the target file, so a keyring fetched once was
+# never refreshed again. When a vendor rotates its signing key — HashiCorp
+# did in September 2026, moving from AA16FCBCA621E701 to FC9CA96ACA026560 —
+# apt starts failing with NO_PUBKEY and no amount of replaying the playbook
+# heals it: the file exists, so the task keeps skipping.
+#
+# Here the candidate keyring is rebuilt in a tempdir on every run and only
+# copied into place when its bytes differ from what is installed. A normal
+# run therefore stays idempotent, while a rotation is picked up on the next
+# replay without touching any variable.
+
+- name: Assert the caller passed the required keyring parameters
+  ansible.builtin.assert:
+    that:
+      - apt_keyring_name | length > 0
+      - apt_keyring_path | length > 0
+      - apt_keyring_url | length > 0
+      - apt_keyring_format in ["ascii", "gpg"]
+    fail_msg: >-
+      apt_keyring requires apt_keyring_name, apt_keyring_path and
+      apt_keyring_url, with apt_keyring_format set to "ascii" or "gpg".
+    quiet: true
+
+- name: Ensure gnupg is installed
+  ansible.builtin.apt:
+    name: gnupg
+    state: present
+
+- name: Ensure the keyring directory exists
+  ansible.builtin.file:
+    path: "{{ apt_keyring_path | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# The staging directory is built even under --check: it is throwaway state in
+# /tmp, and without it `--check` has nothing to diff the installed keyring
+# against and would report no change on a machine whose key is stale.
+- name: Create the keyring staging directory
+  ansible.builtin.tempfile:
+    state: directory
+    suffix: "_{{ apt_keyring_name }}_keyring"
+  register: apt_keyring_tmp
+  changed_when: false
+  check_mode: false
+
+- name: Build the candidate keyring and install it if it differs
+  block:
+    - name: Download the upstream signing key
+      ansible.builtin.get_url:
+        url: "{{ apt_keyring_url }}"
+        dest: "{{ apt_keyring_tmp.path }}/upstream"
+        owner: root
+        group: root
+        mode: "0644"
+      register: apt_keyring_download
+      retries: 3
+      delay: 2
+      until: apt_keyring_download is succeeded
+      changed_when: false
+      check_mode: false
+
+    # gpg --dearmor exits non-zero on anything that is not OpenPGP armor, so
+    # a captive portal serving an HTML page fails here instead of clobbering
+    # a working keyring.
+    - name: Dearmor the armored key into the candidate keyring
+      ansible.builtin.command:
+        cmd: >
+          gpg --batch --yes
+              --dearmor
+              --output {{ apt_keyring_tmp.path }}/candidate
+              {{ apt_keyring_tmp.path }}/upstream
+      changed_when: false
+      check_mode: false
+      when: apt_keyring_format == "ascii"
+
+    - name: Take the binary keyring as the candidate
+      ansible.builtin.copy:
+        src: "{{ apt_keyring_tmp.path }}/upstream"
+        dest: "{{ apt_keyring_tmp.path }}/candidate"
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0644"
+      changed_when: false
+      check_mode: false
+      when: apt_keyring_format == "gpg"
+
+    - name: Narrow the candidate keyring to the expected key id
+      ansible.builtin.include_tasks:
+        file: filter_key_id.yml
+      when: apt_keyring_key_id | length > 0
+
+    # Belt and braces: whatever path produced the candidate, refuse to install
+    # something apt could not use. An empty export (wrong key id) or a garbage
+    # download both land here.
+    - name: Read the keys held by the candidate keyring
+      ansible.builtin.command:
+        cmd: "gpg --batch --quiet --show-keys --with-colons {{ apt_keyring_tmp.path }}/candidate"
+      register: apt_keyring_probe
+      changed_when: false
+      check_mode: false
+      failed_when:
+        - apt_keyring_probe.rc != 0 or 'pub:' not in apt_keyring_probe.stdout
+
+    - name: Assert the candidate keyring holds the expected key id
+      ansible.builtin.assert:
+        that:
+          - (apt_keyring_key_id | upper) in (apt_keyring_probe.stdout | upper)
+        fail_msg: >-
+          {{ apt_keyring_url }} no longer serves key {{ apt_keyring_key_id }}.
+          The vendor most likely rotated it: check the new fingerprint against
+          their published one, then update apt_keyring_key_id.
+        quiet: true
+      when: apt_keyring_key_id | length > 0
+
+    - name: Install the candidate keyring
+      ansible.builtin.copy:
+        src: "{{ apt_keyring_tmp.path }}/candidate"
+        dest: "{{ apt_keyring_path }}"
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Refresh apt cache after keyring rotation
+
+  always:
+    - name: Remove the keyring staging directory
+      ansible.builtin.file:
+        path: "{{ apt_keyring_tmp.path }}"
+        state: absent
+      changed_when: false
+      check_mode: false

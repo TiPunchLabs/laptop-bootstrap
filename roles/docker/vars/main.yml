@@ -1,6 +1,6 @@
 ---
 docker_gpg:
-  path: /usr/share/keyrings/docker-archive-keyring.gpg
+  path: /etc/apt/keyrings/docker.gpg
   url: https://download.docker.com/linux/ubuntu/gpg
 
 docker_deb822:

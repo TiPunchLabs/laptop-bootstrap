@@ -1,146 +1,21 @@
 ---
 # ——— Key paths ———
-- name: Define key paths
+- name: Define key path
   ansible.builtin.set_fact:
-    bootstrap_key_asc_path: "{{ bootstrap_keyrings_dir }}/{{ software.name }}.asc"
     bootstrap_key_gpg_path: "{{ bootstrap_keyrings_dir }}/{{ software.name }}.gpg"
 
-- name: Ensure keyrings directory exists
-  ansible.builtin.file:
-    path: "{{ bootstrap_keyrings_dir }}"
-    state: directory
-    mode: "0755"
-
 # ——— Key handling ———
-- name: Check if GPG keyring exists
-  ansible.builtin.stat:
-    path: "{{ bootstrap_key_gpg_path }}"
-  register: bootstrap_keyring_stat
-
-- name: Download vendor GPG keyring (.gpg)
-  ansible.builtin.get_url:
-    url: "{{ software.key_url }}"
-    dest: "{{ bootstrap_key_gpg_path }}"
-    mode: "0644"
-  when:
-    - software.key_format | lower == "gpg"
-    - not bootstrap_keyring_stat.stat.exists
-
-- name: Download ASCII key (.asc)
-  ansible.builtin.get_url:
-    url: "{{ software.key_url }}"
-    dest: "{{ bootstrap_key_asc_path }}"
-    mode: "0644"
-  when:
-    - software.key_format | lower == "ascii"
-    - not bootstrap_keyring_stat.stat.exists
-
-# Write the dearmored output to a staging file next to the final path,
-# then rename into place. A direct `gpg --dearmor -o <target>` can leave
-# a corrupted file if the process is interrupted mid-write; the target
-# would still exist, `creates:` would skip subsequent runs, and apt
-# would fail at the next source refresh.
-- name: Dearmor ASCII key to staging file (.new)
-  ansible.builtin.command:
-    cmd: "gpg --batch --yes --dearmor -o {{ bootstrap_key_gpg_path }}.new {{ bootstrap_key_asc_path }}"
-  args:
-    creates: "{{ bootstrap_key_gpg_path }}"
-  register: bootstrap_dearmor
-  when: software.key_format | lower == "ascii"
-
-- name: Atomically move dearmored key into place
-  ansible.builtin.copy:
-    src: "{{ bootstrap_key_gpg_path }}.new"
-    dest: "{{ bootstrap_key_gpg_path }}"
-    remote_src: true
-    mode: "0644"
-  when:
-    - software.key_format | lower == "ascii"
-    - bootstrap_dearmor is changed
-
-- name: Cleanup dearmor staging file
-  ansible.builtin.file:
-    path: "{{ bootstrap_key_gpg_path }}.new"
-    state: absent
-  when:
-    - software.key_format | lower == "ascii"
-    - bootstrap_dearmor is changed
-
-
-# ——— (facultatif mais conseillé) s'assurer que gpg est dispo ———
-- name: Ensure gnupg is installed
-  ansible.builtin.apt:
-    name: gnupg
-    state: present
-  become: true
-
-# ——— Ré-export de la clé pour compat APT ———
-# Skip the whole re-export dance if the target keyring already holds
-# exactly the expected key_id — otherwise every run re-creates a temp
-# GNUPG home, re-imports, re-exports and wipes the tempdir, which shows
-# up as 4 spurious `changed` tasks on each replay.
-- name: Probe target keyring for expected key_id
-  ansible.builtin.command:
-    cmd: >
-      gpg --no-default-keyring
-          --keyring {{ bootstrap_key_gpg_path }}
-          --list-keys {{ software.key_id }}
-  register: bootstrap_keyring_probe
-  changed_when: false
-  failed_when: false
-  when: software.key_id is defined
-
-- name: Create temporary GNUPG home
-  ansible.builtin.tempfile:
-    state: directory
-    suffix: _gnupg
-  register: bootstrap_gpg_tmp
-  when:
-    - software.key_id is defined
-    - bootstrap_keyring_probe.rc | default(1) != 0
-
-# On importe ce qu'on a déjà (le .gpg dearmored) dans un trousseau temporaire
-- name: Import current key into temp keyring
-  ansible.builtin.command:
-    cmd: "gpg --homedir {{ bootstrap_gpg_tmp.path }} --import {{ bootstrap_key_gpg_path }}"
-  register: bootstrap_gpg_import
-  changed_when: "'imported' in (bootstrap_gpg_import.stdout + bootstrap_gpg_import.stderr)"
-  when:
-    - software.key_id is defined
-    - bootstrap_gpg_tmp.path is defined
-
-# Puis on ré-exporte **spécifiquement** l'ID de clé signataire vers le fichier Signed-By
-- name: Export specific key id to keyring file (non-interactive overwrite)
-  ansible.builtin.command:
-    cmd: >
-      gpg --batch --yes
-          --homedir {{ bootstrap_gpg_tmp.path }}
-          --output {{ bootstrap_key_gpg_path }}
-          --export {{ software.key_id }}
-  register: bootstrap_gpg_export
-  when:
-    - software.key_id is defined
-    - bootstrap_gpg_tmp.path is defined
-
-- name: Ensure keyring permissions
-  ansible.builtin.file:
-    path: "{{ bootstrap_key_gpg_path }}"
-    mode: "0644"
-  when: software.key_id is defined
-
-- name: Cleanup temporary GNUPG home
-  ansible.builtin.file:
-    path: "{{ bootstrap_gpg_tmp.path }}"
-    state: absent
-  when:
-    - software.key_id is defined
-    - bootstrap_gpg_tmp.path is defined
-
-- name: Remove downloaded ASCII key to keep things tidy
-  ansible.builtin.file:
-    path: "{{ bootstrap_key_asc_path }}"
-    state: absent
-  when: software.key_format | lower == "ascii"
+# Delegated to apt_keyring so a vendor key rotation heals on the next run
+# instead of leaving apt stuck on NO_PUBKEY — see roles/apt_keyring/README.md.
+- name: Install the vendor signing key
+  ansible.builtin.include_role:
+    name: apt_keyring
+  vars:
+    apt_keyring_name: "{{ software.name }}"
+    apt_keyring_path: "{{ bootstrap_key_gpg_path }}"
+    apt_keyring_url: "{{ software.key_url }}"
+    apt_keyring_format: "{{ software.key_format | lower }}"
+    apt_keyring_key_id: "{{ software.key_id | default('') }}"
 
 # ——— Deb822 source ———
 - name: Remove legacy .list (if any) to avoid conflicts
