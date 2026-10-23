@@ -23,6 +23,11 @@ cli_tools_mise_tools:
   terraform: latest
   awscli: latest
   k9s: latest
+  # Major-pinned, not "latest": node "latest" tracks the non-LTS Current line.
+  # Keep node in step with the projects' CI (setup-node 22); bump the major in
+  # a dedicated change. pnpm 10 matches the projects' `packageManager` field.
+  node: "22"
+  pnpm: "10"
 
 # Shell hooks managed as an ordered, atomic block in ~/.bashrc. mise must come
 # first so starship/direnv/fzf can resolve mise-managed binaries on PATH.

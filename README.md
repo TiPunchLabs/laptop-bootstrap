@@ -18,7 +18,7 @@ This project uses Ansible to automate the installation and configuration of a la
 - `roles/`: Contains the Ansible roles
   - `apt_keyring/`: Shared brick that keeps a vendor apt signing keyring in sync with its upstream, so key rotations heal on the next run instead of stalling apt on `NO_PUBKEY`
   - `bootstrap/`: Entry-point role that orchestrates the others; owns the apt sources for vendor packages (`bootstrap_software_list`, deb822)
-  - `cli_tools/`: Unified CLI tool manager via [mise](https://mise.jdx.dev/) — installs uv, fzf, direnv, zoxide, eza, bat, chezmoi, starship, kubectl, terraform, awscli, k9s; manages an atomic `~/.bashrc` block
+  - `cli_tools/`: Unified CLI tool manager via [mise](https://mise.jdx.dev/) — installs uv, fzf, direnv, zoxide, eza, bat, chezmoi, starship, kubectl, terraform, awscli, k9s, node (22), pnpm (10); manages an atomic `~/.bashrc` block
   - `cleanup_legacy/`: Removes pre-migration apt packages / binaries / repos superseded by mise
   - `devtools/`: Development tools (Postman, etc.)
   - `postman_cli/`: Postman **CLI** (`postman` collection runner) — pinned tarball from `dl-cli.pstmn.io`, owns `/usr/local/bin/postman` (the `devtools` role's desktop app is symlinked as `postman-app`)
@@ -172,6 +172,25 @@ eval "$(direnv hook bash)"
 On the first playbook run after the `libvirt` role landed, your user is added to the `kvm` group (in addition to `libvirt`). The new membership only takes effect for **new** sessions — run `newgrp kvm` in the current shell or simply log out and back in.
 
 After deletion, re-run `make play-cli-tools` to regenerate a clean managed block.
+
+### Node.js and pnpm under mise
+
+`node` (22) and `pnpm` (10) are declared in `cli_tools_mise_tools` like every other CLI tool (see [ADR-0001](docs/adr/0001-unified-cli-tool-management-with-mise.md#amendment-2026-10-23--nodejs-and-pnpm)). Pre-existing installs (NodeSource `nodejs` apt package, standalone pnpm under `~/.local/share/pnpm`) are **left in place**: mise shadows them in interactive shells, and they remain the fallback for non-interactive contexts. `PNPM_HOME` still holds pnpm global packages.
+
+```sh
+# Verify (in a fresh shell: exec bash)
+type -a node npm pnpm     # first hit must be under ~/.local/share/mise/installs/
+mise current node pnpm    # 22.x / 10.x
+mise which node           # real binary path behind the PATH entry
+
+# Update within the pinned major (22.x / 10.x)
+mise upgrade node pnpm
+
+# Change major: edit cli_tools_mise_tools, then (mise tag = cli_tools only, no cleanup_legacy)
+make play TAGS=mise
+```
+
+**Rollback** — delete the `node` / `pnpm` lines from `cli_tools_mise_tools` and run `make play TAGS=mise`: the prune step uninstalls them from mise, and `/usr/bin/node` + `~/.local/share/pnpm/pnpm` resolve again after `exec bash`.
 
 ## Security & Code Quality
 
