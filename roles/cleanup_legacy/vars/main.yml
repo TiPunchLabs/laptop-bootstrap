@@ -42,7 +42,7 @@ cleanup_legacy_paths:
 cleanup_legacy_user_paths:
   - "/home/{{ bootstrap_local_user }}/.local/bin/uv"
   # Hand-made asdf-style pin file: mise reads it and reports its tools as
-  # "missing". Tool versions live only in cli_tools_mise_tools.
+  # "missing". Tool versions live only in the global mise config.
   - "/home/{{ bootstrap_local_user }}/.tool-versions"
 
 # Orphan bashrc lines left by pre-mise installs. MUST NOT overlap with

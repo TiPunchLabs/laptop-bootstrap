@@ -10,7 +10,7 @@ Three layers, each with a distinct job:
 |---|---|---|
 | **Ansible** | Orchestration and system configuration: hostname, `/etc/hosts`, systemd drop-ins (DNS, sudo, journald), roles for Docker, libvirt, Vagrant, Git, Syncthing, etc. Every change goes through a playbook run, so a laptop can be rebuilt from Git. | `playbook.yml` → `roles/bootstrap/` (entry point, includes the other roles) |
 | **APT** | System components and apps that ship as Debian packages (Docker, Chrome, VS Code, Brave, DBeaver, Trivy, libvirt, …), plus their deb822 sources and signing keyrings. | `roles/bootstrap/vars/main/essentials.yml`, `roles/bootstrap/vars/main/software.yml`, per-role vars |
-| **mise** | User-level CLI tools that have a mise backend: version selection, installation, activation in interactive shells. | `cli_tools_mise_tools` in `roles/cli_tools/vars/main.yml` |
+| **mise** | User-level CLI tools that have a mise backend: which tools, which versions, installs, upgrades, removals. Ansible only installs mise, wires its shell activation and seeds its config once. | Live: `~/.config/mise/config.toml` · reference for a fresh laptop: `roles/cli_tools/files/config.toml` |
 
 mise is **not** a universal package manager here. Anything that needs system integration (daemons, kernel modules, desktop entries, apt-maintained security updates) stays on APT on purpose. The reasoning is in [ADR-0001](docs/adr/0001-unified-cli-tool-management-with-mise.md).
 
@@ -112,15 +112,19 @@ Base packages, vendor apps (`software.yml`), hostname and `/etc/hosts` have no t
 
 ### Managing CLI tools with mise
 
-There are three distinct operations:
+Ansible copies the reference `roles/cli_tools/files/config.toml` to `~/.config/mise/config.toml` **only when that file is absent**, and runs `mise install` right after. From then on, mise owns the live config: Ansible never rewrites it, never installs into it, never uninstalls from it.
 
-| Goal | How | What happens |
-|---|---|---|
-| Change the declaration (add/remove/pin a tool) | Edit `cli_tools_mise_tools`, then `make play TAGS=mise` | Re-renders `~/.config/mise/config.toml`, installs missing tools, **uninstalls tools no longer declared** |
-| Install declared tools on a fresh machine | `make play TAGS=mise` | `mise install --yes` runs only when the config changed or a tool is missing |
-| Upgrade tools already installed | `mise upgrade` (or `mise upgrade <tool>`) | Ansible never does this: `latest` is resolved at install time and **not** refreshed by later playbook runs |
+| Goal | How |
+|---|---|
+| Add / remove a tool | `mise use -g <tool>@<version>` / `mise unuse -g <tool>` |
+| Upgrade within the declared ranges | `mise upgrade` |
+| Change a major (e.g. Node.js) | `mise use -g node@<major>` (or `mise upgrade --bump node`) |
+| Upgrade mise itself | `mise self-update` (Ansible's install task only runs when the binary is missing) |
+| Compare live config with the reference | `diff -u roles/cli_tools/files/config.toml ~/.config/mise/config.toml` |
+| Promote a validated live config to Git | `cp ~/.config/mise/config.toml roles/cli_tools/files/config.toml`, review the diff, then open a PR |
+| Re-seed from the reference | Move the live config aside, then `make play TAGS=mise` |
 
-Node.js and pnpm are pinned to a major version (`node: "22"`, `pnpm: "10"`), because `latest` would track Node's non-LTS line. `mise upgrade node pnpm` stays within those majors. To change the major, edit the value and run `make play TAGS=mise`.
+The reference pins Node.js and pnpm to a major (`node = "26"`, `pnpm = "12"`): `latest` would follow Node's moving Current line. Promotion is manual on purpose; keep secrets (`[env]`) out of the global config, or strip them before promoting.
 
 ### Testing in a VM
 
@@ -158,7 +162,7 @@ type -a node pnpm            # first hit under ~/.local/share/mise/installs/
 mise current node pnpm
 ```
 
-**Rollback:** remove the `node`/`pnpm` lines from `cli_tools_mise_tools` and run `make play TAGS=mise`. The prune step uninstalls them from mise, and the older binaries resolve again after `exec bash`.
+**Rollback:** `mise unuse -g node pnpm` (it also prunes the installs; add `--no-prune` to keep them), then `exec bash`: `/usr/bin/node` and the standalone pnpm resolve again.
 
 ### Manual `.bashrc` cleanup (one-time)
 
