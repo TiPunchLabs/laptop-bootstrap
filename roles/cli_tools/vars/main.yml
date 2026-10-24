@@ -9,26 +9,6 @@ cli_tools_mise_bin: "/home/{{ bootstrap_local_user }}/.local/bin/mise"
 cli_tools_mise_config_dir: "/home/{{ bootstrap_local_user }}/.config/mise"
 cli_tools_mise_config_file: "{{ cli_tools_mise_config_dir }}/config.toml"
 
-# Tools declared in mise config.toml. Use "latest" unless a pinned version is needed.
-cli_tools_mise_tools:
-  uv: latest
-  fzf: latest
-  direnv: latest
-  zoxide: latest
-  eza: latest
-  bat: latest
-  chezmoi: latest
-  starship: latest
-  kubectl: latest
-  terraform: latest
-  awscli: latest
-  k9s: latest
-  # Major-pinned, not "latest": node "latest" tracks the non-LTS Current line.
-  # Keep node in step with the projects' CI (setup-node 22); bump the major in
-  # a dedicated change. pnpm 10 matches the projects' `packageManager` field.
-  node: "22"
-  pnpm: "10"
-
 # Shell hooks managed as an ordered, atomic block in ~/.bashrc. mise must come
 # first so starship/direnv/fzf can resolve mise-managed binaries on PATH.
 # `fzf --bash` (fzf >=0.48) emits key-bindings + completion inline — replaces

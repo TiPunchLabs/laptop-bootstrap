@@ -1,0 +1,22 @@
+# Reference mise config for a fresh laptop.
+# Ansible (roles/cli_tools) copies it to ~/.config/mise/config.toml only when
+# that file is absent; afterwards mise owns the live config. Promote a
+# validated live config back here by hand — see README → Managing CLI tools.
+
+[tools]
+uv = "latest"
+fzf = "latest"
+direnv = "latest"
+zoxide = "latest"
+eza = "latest"
+bat = "latest"
+chezmoi = "latest"
+starship = "latest"
+kubectl = "latest"
+terraform = "latest"
+awscli = "latest"
+k9s = "latest"
+# Major-pinned: "latest" would follow the moving Current line. Bump with
+# `mise use -g node@<major>`, then promote here once validated.
+node = "26"
+pnpm = "12"

@@ -126,6 +126,19 @@ exec bash
 
 ------
 
+## Amendment 2026-10-23 — mise owns the live config
+
+**Context.** Ansible rendered `~/.config/mise/config.toml` from `cli_tools_mise_tools` on every run and uninstalled any tool missing from that list. A deliberate change made with mise (Node.js 26, pnpm 12 via `mise upgrade --bump`) was reverted by the next `--tags mise` run, and a tool added with `mise use -g` was pruned.
+
+**Decision.** Ansible installs mise, keeps the shell hooks, and **seeds** the global config from `roles/cli_tools/files/config.toml` only when it is absent (`copy` with `force: false`), running `mise install` once right after. It no longer renders, installs into or prunes an existing config. The `cli_tools_mise_tools` variable and its template are removed: the reference file is the only tool inventory.
+
+- **Reproducibility** comes from the versioned reference: a fresh laptop is seeded from it. Promotion from the live config is a manual `cp` + PR, never automatic.
+- **Upgrades** (tools and mise itself) are explicit mise commands; nothing auto-updates.
+- **Trade-off**: an existing laptop can drift from the reference by design. `diff -u` against the reference is the check.
+- This supersedes the `cli_tools_mise_tools` and major-pin wording of the Node.js amendment above. The pins now live in the reference (`node = "26"`, `pnpm = "12"`).
+
+------
+
 ## References
 
 - mise home: <https://mise.jdx.dev/>

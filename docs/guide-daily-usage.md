@@ -35,7 +35,7 @@ The answer is a small loop: **edit a vars file → smoke-test → ship → apply
 ```
  ┌────────────────── EDIT ──────────────────┐    ┌──────── VERIFY ────────┐    ┌────── APPLY ──────┐
  │                                          │    │                        │    │                   │
- │ roles/cli_tools/vars/main.yml            │    │  make lint-ansible     │    │  make play         │
+ │ roles/cli_tools/files/config.toml        │    │  make lint-ansible     │    │  make play         │
  │ roles/bootstrap/vars/main/software.yml   │ ─► │  make smoke-up         │ ─► │  make play-<role>  │
  │ roles/{docker,vagrant,git}/vars/main.yml │    │  make smoke-replay     │    │                   │
  │ group_vars/all/vault/main.yml (vault)    │    │  → expect changed=0    │    │  on the laptop     │
@@ -59,9 +59,8 @@ The "what do I edit?" table — keep it open in a tab during the first month:
 
 | Intent                               | File                                          | Mechanism                              |
 | ------------------------------------ | --------------------------------------------- | -------------------------------------- |
-| Add / remove a CLI tool              | `roles/cli_tools/vars/main.yml`               | `cli_tools_mise_tools` dict            |
-| Change CLI tool version              | same file                                     | `tool: <semver>` instead of `latest`   |
-| Bump Node.js / pnpm major            | same file                                     | `node: "22"` / `pnpm: "10"` (major-pinned, see ADR-0001 amendment) |
+| Add / remove / re-version a CLI tool | `~/.config/mise/config.toml` (live)           | `mise use -g` / `mise unuse -g`, no Ansible run |
+| Change what a fresh laptop gets      | `roles/cli_tools/files/config.toml`           | promote the validated live config by hand |
 | Add an apt repo + package            | `roles/bootstrap/vars/main/software.yml`      | append entry to `bootstrap_software_list` |
 | Change docker repo / arch            | `roles/docker/vars/main.yml`                  | `docker_deb822` / `docker_gpg`         |
 | Change HashiCorp/vagrant repo        | `roles/vagrant/vars/main.yml`                 | `vagrant_hashicorp_deb822`             |
@@ -70,23 +69,18 @@ The "what do I edit?" table — keep it open in a tab during the first month:
 | Hostname, locale, base apt packages  | `roles/bootstrap/vars/main/*.yml`             | `bootstrap_*` vars                     |
 | Manage a secret                      | `group_vars/all/vault/main.yml`               | `make vault-edit`                      |
 
-> 💡 **Note**: 90% of daily changes touch only `cli_tools/vars/main.yml` or `bootstrap/vars/main/software.yml`. Stay there until you need more.
+> 💡 **Note**: CLI tool changes no longer go through Ansible at all; most Ansible-side changes touch only `bootstrap/vars/main/software.yml`.
 
 ### Example — adding `jq`
 
-```yaml
-# roles/cli_tools/vars/main.yml
-cli_tools_mise_tools:
-  uv: latest
-  fzf: latest
-  # ... existing entries ...
-  jq: latest        # ◄ new line
+```bash
+mise use -g jq@latest                                             # installs + writes the live config
+diff -u roles/cli_tools/files/config.toml ~/.config/mise/config.toml
+# keep it for future laptops? promote, then PR:
+cp ~/.config/mise/config.toml roles/cli_tools/files/config.toml
 ```
 
-That's it. The role takes care of the rest:
-- Re-renders `~/.config/mise/config.toml` (template).
-- Detects `jq` in `declared - installed` → triggers `mise install --yes`.
-- If you ever delete the line, the symmetric `installed - declared` set-diff will trigger `mise uninstall --all jq` on the next run. No dead weight on disk.
+Ansible only seeds `~/.config/mise/config.toml` when it is absent, so later runs never undo or prune this. See [README → Managing CLI tools with mise](../README.md#managing-cli-tools-with-mise).
 
 ### Example — adding a deb822 apt source
 
@@ -170,13 +164,13 @@ exec bash    # or open a fresh terminal — the managed block is read at shell s
 The project follows GitHub Flow: every change rides on a feature branch, merges via PR.
 
 ```bash
-git switch -c feat/add-jq                    # always a feature branch
-# ... edit roles/cli_tools/vars/main.yml ...
+git switch -c feat/add-discord               # always a feature branch
+# ... edit roles/bootstrap/vars/main/software.yml ...
 make lint-ansible
-make smoke-replay TAGS=cli-tools             # 1st: changed≥1
-make smoke-replay TAGS=cli-tools             # 2nd: changed=0 (idempotence proof)
+make smoke-replay                            # 1st: changed≥1
+make smoke-replay                            # 2nd: changed=0 (idempotence proof)
 git add -p
-git commit -m "feat(cli_tools): add jq"      # Conventional Commits — pre-commit runs
+git commit -m "feat(bootstrap): add discord" # Conventional Commits — pre-commit runs
 git push -u origin HEAD
 gh pr create
 ```
@@ -186,8 +180,8 @@ After merge:
 ```bash
 git switch main
 git pull --ff-only
-git branch -d feat/add-jq
-make play-cli-tools                          # roll the change onto your laptop
+git branch -d feat/add-discord
+make play                                    # roll the change onto your laptop
 ```
 
 > 💡 **Note**: Use `git switch -c` to create a branch and `git switch <name>` to navigate; `git checkout` is multi-purpose and can silently restore files when a path collides with a branch name.
@@ -234,9 +228,9 @@ Common causes:
 - A file resource where the source content actually drifts each run (templates pulling `now()`, hostnames, etc.).
 - A `notify:`-fed handler that was meant to fire only once but fires every replay because the trigger task is itself changed every run.
 
-### Mise tool I installed manually disappears
+### A fresh laptop doesn't get a tool I use
 
-By design — the `cli_tools` role prunes anything in `mise ls --installed` that isn't in `cli_tools_mise_tools`. Add the tool to the declared list, or expect it to vanish on the next `--tags cli-tools` run.
+Ansible seeds new machines from `roles/cli_tools/files/config.toml`, not from your live config. Promote the live config (see the `jq` example above) and merge it.
 
 ### Standalone shell hooks in `~/.bashrc` after migration
 
