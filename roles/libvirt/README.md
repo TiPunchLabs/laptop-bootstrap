@@ -2,7 +2,7 @@
 
 Install the KVM/libvirt user stack and configure `libvirtd`:
 
-- Packages: `qemu-kvm`, `libvirt-daemon-system`, `libvirt-clients`, `bridge-utils`, `virtinst`, `virt-manager`, `ovmf`
+- Packages: `qemu-system-x86`, `libvirt-daemon-system`, `libvirt-clients`, `bridge-utils`, `virtinst`, `virt-manager`, `ovmf`
 - Adds the bootstrapping user (`bootstrap_local_user`) to the `libvirt` and `kvm` groups
 - Enables and starts the `libvirtd` service
 
