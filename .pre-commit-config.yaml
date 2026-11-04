@@ -1,10 +1,15 @@
 ---
+# Hooks run at commit time only; the pre-push stage is reserved for gitleaks-pre-push.
+default_stages: [pre-commit]
+default_install_hook_types: [pre-commit, pre-push]
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
     hooks:
       - id: end-of-file-fixer
+        stages: [pre-commit]
       - id: trailing-whitespace
+        stages: [pre-commit]
       # - id: check-added-large-files
       - id: check-merge-conflict
       - id: check-yaml
@@ -15,11 +20,25 @@ repos:
     rev: v8.30.1
     hooks:
       - id: gitleaks
+      # Scan every commit being pushed, not just the net diff. Without a
+      # from-ref (first push of a branch rooted at the repo's root commit),
+      # fall back to the full history of the pushed ref. first-parent diffs
+      # make merge commits visible (git log -p shows no merge patch by default).
+      # Only the first ref of a multi-ref push is scanned (pre-commit limit).
+      - id: gitleaks
+        alias: gitleaks-pre-push
+        name: Detect hardcoded secrets in pushed commits
+        stages: [pre-push]
+        always_run: true
+        entry: >-
+          bash -c 'gitleaks git --redact --verbose --no-banner
+          --log-opts="--diff-merges=first-parent ${PRE_COMMIT_FROM_REF:+$PRE_COMMIT_FROM_REF..}${PRE_COMMIT_TO_REF:-${PRE_COMMIT_LOCAL_BRANCH:-HEAD}}"'
 
   - repo: https://github.com/scop/pre-commit-shfmt
     rev: v3.11.0-1
     hooks:
       - id: shfmt
+        stages: [pre-commit]
         types: [shell]
         files: \.sh$
 
