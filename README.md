@@ -184,7 +184,7 @@ mise current node pnpm
 ## Security
 
 - Secrets live only in `group_vars/all/vault/main.yml` (Ansible Vault). Edit them with `make vault-edit`. The vault password comes from `pass`, and `.envrc` reads its tokens from `pass` too, so nothing is stored in plain text.
-- `pre-commit` (run by `make lint`) enforces yamllint, ansible-lint, shellcheck/shfmt, Terraform fmt/validate/tflint, flake8, `detect-private-key` and a vault-encryption check that blocks plaintext vault files.
+- `pre-commit` (run by `make lint`) enforces yamllint, ansible-lint, shellcheck/shfmt, Terraform fmt/validate/tflint, flake8, `detect-private-key`, gitleaks (secret scan of staged changes) and a vault-encryption check that blocks plaintext vault files.
 - Vendor keyrings are validated with `gpg --show-keys` before installation (an HTML error page fails the run).
 - Report vulnerabilities as described in [SECURITY.md](SECURITY.md).
 
