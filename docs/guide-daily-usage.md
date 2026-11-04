@@ -109,7 +109,7 @@ The fast-to-slow ladder of feedback:
 ```bash
 make lint-ansible        # 5–10 s — catches structural / lint issues
 make lint                # 30–60 s — full pre-commit (yamllint, shellcheck, vault check, etc.)
-make smoke-replay TAGS=cli-tools   # 1–3 min — replay the touched role on the smoke VM
+make smoke-replay TAGS=mise        # 1–3 min — replay the touched role's tag on the smoke VM
 make smoke-replay        # 3–5 min — full playbook replay (excluding `vagrant` tag by default)
 ```
 
@@ -147,11 +147,12 @@ Once the smoke VM is green, point the same playbook at `localhost`:
 | Goal                                  | Command                                  |
 | ------------------------------------- | ---------------------------------------- |
 | Run the whole bootstrap               | `make play`                              |
-| Apply only the cli_tools change       | `make play-cli-tools`                    |
+| Apply only the cli_tools change       | `make play TAGS=mise`                    |
+| Migrate a pre-mise laptop (runs `cleanup_legacy` first, removes things) | `make play-cli-tools` |
 | Apply docker + git in one go          | `make play TAGS=docker,git`              |
 | Apply only the cleanup_legacy role    | `make play-cleanup-legacy`               |
 
-After a `cli-tools` run that added a new shell hook, reload your shell:
+After a `mise` run that added a new shell hook, reload your shell:
 
 ```bash
 exec bash    # or open a fresh terminal — the managed block is read at shell startup
@@ -181,7 +182,7 @@ After merge:
 git switch main
 git pull --ff-only
 git branch -d feat/add-discord
-make play                                    # roll the change onto your laptop
+make play                                    # software.yml has no tag: full run, includes cleanup_legacy
 ```
 
 > 💡 **Note**: Use `git switch -c` to create a branch and `git switch <name>` to navigate; `git checkout` is multi-purpose and can silently restore files when a path collides with a branch name.
@@ -234,7 +235,7 @@ Ansible seeds new machines from `roles/cli_tools/files/config.toml`, not from yo
 
 ### Standalone shell hooks in `~/.bashrc` after migration
 
-Pre-`blockinfile` versions of the role appended `eval` lines directly. After upgrading, those orphan lines persist. Delete them by hand once, then run `make play-cli-tools` to regenerate the managed block. See [README → Manual `.bashrc` cleanup](../README.md#manual-bashrc-cleanup-one-time).
+Pre-`blockinfile` versions of the role appended `eval` lines directly. After upgrading, those orphan lines persist. Delete them by hand once, then run `make play TAGS=mise` to regenerate the managed block. See [README → Manual `.bashrc` cleanup](../README.md#manual-bashrc-cleanup-one-time).
 
 ### "Tag not found" when running `make play TAGS=foo`
 
@@ -244,7 +245,7 @@ You misspelled a tag, or you're trying to run a role that the playbook doesn't i
 
 ## ✅ Best practices
 
-- **Stay on the role tag.** `make play-cli-tools` is faster than `make play`, exposes only the failures relevant to your change, and avoids re-applying things that don't need it.
+- **Stay on the role tag.** `make play TAGS=<tag>` (`mise` for CLI tools, not `cli-tools`, which also runs `cleanup_legacy`) is faster than `make play`, exposes only the failures relevant to your change, and avoids re-applying things that don't need it.
 - **Two replays, every time.** First run = the change applies; second run = the proof of idempotence. Skipping the second is how non-idempotent tasks slip in.
 - **One concern per PR.** A `cli_tools` change and a `docker` repo bump don't belong in the same diff — the smoke replay can't tell you which one regressed `changed=0`.
 - **Conventional Commits, narrow scope.** `feat(cli_tools): add jq`, not `feat: stuff`. The scope makes future bisects two minutes instead of twenty.
