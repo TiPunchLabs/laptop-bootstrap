@@ -178,6 +178,7 @@ mise current node pnpm
 
 - [Daily usage guide](docs/guide-daily-usage.md): what to edit for each intent, the edit → verify → apply loop, troubleshooting
 - [Smoke-test guide](docs/guide-smoke-test-vagrant.md): VM harness in depth
+- [Agent workflow](docs/agent-workflow.md): objective → Claude Code → Codex review (Herdr) → report; agent rules in [`CLAUDE.md`](CLAUDE.md)
 - [Architecture Decision Records](docs/adr/): notably [ADR-0001](docs/adr/0001-unified-cli-tool-management-with-mise.md) (mise)
 - [CONTRIBUTING.md](CONTRIBUTING.md) · [SECURITY.md](SECURITY.md) · [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 

@@ -15,13 +15,6 @@ Last review: 2026-11-04.
   `roles/cli_tools/vars/main.yml`
 - **Next step**: `git switch fix/pnpm-global-bin-path`, then commit and `/ship`.
 
-### Project-level `CLAUDE.md`
-- **Status**: pushed, no PR
-- **Branch**: `docs/project-claude-md` — commit `6027b10` (adds a 197-line
-  `CLAUDE.md`), branched before PRs #51–#53
-- **Next step**: rebase on `main`, check the content still matches the current
-  roles (mise, libvirt), then open a PR — or drop the branch.
-
 ### Dependabot PR #45 — `actions/setup-python` 6 → 7
 - **Status**: open since 2026-07-23
 - **Next step**: rebase via `@dependabot rebase`, check CI, merge.
@@ -34,6 +27,14 @@ Last review: 2026-11-04.
   identical to that commit, but git does not see it as merged, so `-d` refuses.
 - **Command**:
   `git branch -D fix/pnpm-home-after-mise && git push origin --delete fix/pnpm-home-after-mise`
+
+### Delete `docs/project-claude-md`
+- **Status**: superseded, local + remote
+- **Context**: its `CLAUDE.md` (commit `6027b10`) was refreshed and merged with the
+  agent workflow (`docs/missions/2026-11-04-agent-workflow/`).
+- **When**: after that change is merged.
+- **Command**:
+  `git branch -D docs/project-claude-md && git push origin --delete docs/project-claude-md`
 
 ## Deferred improvements
 
@@ -69,3 +70,10 @@ Optional; none of these blocks anything.
   package names in `vars/`.
 - GitHub's `ubuntu-latest` runner moves to Ubuntu 26 from 2026-10-19, so CI
   now matches the laptop's release.
+
+### `ansible.cfg` pins the venv to Python 3.12
+- `collections_path = ./.venv/lib/python3.12/site-packages/ansible_collections`.
+  A `.venv` built on another Python (uv picked 3.14 for a fresh worktree on
+  2026-11-04) leaves the pre-commit ansible-lint hook unable to resolve
+  `community.general.xml`. Workaround: `uv sync --python 3.12`. Fix if it bites
+  again: pin `.python-version` or derive the path.
