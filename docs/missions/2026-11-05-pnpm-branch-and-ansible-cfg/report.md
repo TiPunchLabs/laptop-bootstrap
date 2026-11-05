@@ -4,7 +4,7 @@
 
 PASS. WS1: `fix/pnpm-home-after-mise` proven integrated and deleted locally and
 remotely. WS2: Python-specific `collections_path` removed; collection discovery
-proven on Python 3.12, 3.14 and 3.11; PR #60 open, CI green. Codex review 1:
+proven on Python 3.12, 3.14, 3.11 and 3.10; PR #60 open, CI green. Codex review 1:
 PASS_WITH_RESERVATIONS, no findings. Merge and laptop application are the owner's.
 
 Evidence dir `E` = `~/.local/share/laptop-bootstrap-agent/2026-11-05-pnpm-branch-and-ansible-cfg/`.
@@ -51,6 +51,7 @@ Solution (owner-approved option "Local hook, locked lint"):
 |---|---|---|
 | Reproduction, original config, 3.14 venv | hook exit 1, unknown-module | `ws2-repro-hook-3.14.log` |
 | Matrix 3.12.12 / 3.14.7 / 3.11.17: `uv sync --frozen`, resolution, `--syntax-check`, `ansible-lint`, `yamllint .`, hook `--all-files` | all exit 0; community.general from each venv (12.2.0, 12.2.0, 11.4.2), never `~/.ansible` | `ws2-matrix-summary.txt`, `ws2-py*-*.log` |
+| Python 3.10.20 follow-up (same `matrix.sh`, worktree `.venv`) | ansible-core 2.17.14, ansible-lint 26.1.1; `uv sync --frozen`, `--syntax-check`, `ansible-lint` ("Passed: 0 failure(s)… 'production'"), `yamllint .`, hook all exit 0; community.general 9.5.2 from the 3.10 venv | `ws2-py3.10-summary.txt`, `ws2-py3.10-*.log` |
 | Hook binary | worktree `.venv/bin/ansible-lint` 26.1.1, ansible-core 2.20.1 | `ws2-hook-binary.txt` |
 | pre-commit on all changed files; commit and pre-push hooks (dummy vault, `env_dirty=0`) | pass | `precommit-1.log`, `precommit-2.log`, `commit-1.log`, `push-1.log`, `commit-1.env` |
 | CI on `2645ae2` (run 42111186887) | lint, terraform success; ansible-lint "Passed: 0 failure(s)… 'production'" | `ci-run-42111186887.log` |
@@ -63,7 +64,8 @@ The commit adding this report is pushed afterwards; its CI is checked in the ses
 - Smoke VM: NOT_APPLICABLE — it loads `test/smoke/ansible.cfg` (`Vagrantfile:52`).
 - Laptop: not run (owner). `make play` from the laptop's `.venv` resolves the same way
   as the matrix, but this was not executed there.
-- Python 3.10 (ansible-core 2.17) not in the matrix.
+- Python 3.10 checked after the first report commit (row above); every interpreter in
+  the supported range `>=3.10` up to 3.14 is now covered except 3.13.
 - Codex reservations: an empty `collections_path` is not an enforced venv boundary
   (repo-local `ansible_collections`, extra `sys.path` entries or env overrides still
   count); `uv run --no-sync` trusts the existing `.venv` (run `uv sync` after
