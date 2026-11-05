@@ -129,8 +129,10 @@ Every objective gets at least one acceptance criterion per expected outcome and
    clean or not on `main`, use a worktree:
    `git worktree add -b <type>/<slug> ../laptop-bootstrap-worktrees/<slug> origin/main`,
    then `git branch --unset-upstream` (so a later push cannot target `main`) and
-   `uv sync --frozen` inside it: the pre-commit ansible-lint hook runs that
-   worktree's own `.venv` (`uv run --no-sync ansible-lint`) and fails without it.
+   `uv sync --frozen` inside it: the pre-commit ansible-lint hook and the Makefile
+   run that worktree's own tools (`uv run --no-sync .venv/bin/<tool>`) and fail
+   without them. If uv picks an interpreter the lock cannot build for (3.15 today:
+   `rpds-py` has no wheel), add `--python` with the main checkout's `.venv` version.
 4. **Verify** — §4. Record each check with its exit status in `mission.md`.
 5. **Review** — §5.
 6. **Fix and re-review** — at most **2 correction cycles** after the first review

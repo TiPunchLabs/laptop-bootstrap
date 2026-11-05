@@ -10,6 +10,13 @@ VAULT     ?= group_vars/all/vault/main.yml
 TAGS      ?=
 SMOKE_DIR ?= test/smoke
 
+# Ansible tools and pre-commit run as `uv run --no-sync .venv/bin/<tool>`. The
+# explicit path never falls back to a pipx/uv-tool copy found on PATH, which cannot
+# see the venv's collections (ansible.cfg's collections_path is empty on purpose);
+# uv puts .venv/bin first on PATH for what they spawn (ansible-lint runs `ansible`).
+# `uv sync --frozen` creates .venv.
+VENV_RUN ?= uv run --no-sync .venv/bin
+
 # Deferred (=) so target-specific `TAGS := ...` assignments propagate.
 ANSIBLE_FLAGS = $(if $(strip $(TAGS)),--tags $(TAGS),)
 
@@ -26,7 +33,7 @@ help: ## Show this help
 
 .PHONY: play
 play: ## Run the full playbook (use TAGS=... to scope)
-	ansible-playbook -i $(INVENTORY) $(PLAYBOOK) $(ANSIBLE_FLAGS)
+	$(VENV_RUN)/ansible-playbook -i $(INVENTORY) $(PLAYBOOK) $(ANSIBLE_FLAGS)
 
 .PHONY: play-cli-tools play-docker play-git play-vagrant play-devtools play-cleanup-legacy play-obsidian play-syncthing play-postman-cli
 play-cli-tools:      TAGS := cli-tools
@@ -52,16 +59,16 @@ play-postman-cli:    play ## Run only the postman_cli role
 
 .PHONY: uninstall-opera
 uninstall-opera: ## Purge Opera (package, apt sources, vendor keyrings)
-	ansible-playbook -i $(INVENTORY) uninstall-opera.yml
+	$(VENV_RUN)/ansible-playbook -i $(INVENTORY) uninstall-opera.yml
 
 # ——— Lint ———
 
 .PHONY: lint lint-ansible
 lint: ## Run all pre-commit hooks on the whole tree
-	pre-commit run --all-files
+	$(VENV_RUN)/pre-commit run --all-files
 
 lint-ansible: ## Run ansible-lint only
-	ansible-lint
+	$(VENV_RUN)/ansible-lint
 
 # ——— Smoke test (Vagrant + libvirt) ———
 
@@ -85,10 +92,10 @@ smoke-status: ## Show the smoke VM state
 
 .PHONY: vault-edit vault-view
 vault-edit: ## Edit the encrypted vault file
-	ansible-vault edit $(VAULT)
+	$(VENV_RUN)/ansible-vault edit $(VAULT)
 
 vault-view: ## View the encrypted vault file
-	ansible-vault view $(VAULT)
+	$(VENV_RUN)/ansible-vault view $(VAULT)
 
 # ——— Cleanup ———
 
@@ -96,4 +103,4 @@ vault-view: ## View the encrypted vault file
 clean: ## Remove retry files and local ansible/pre-commit caches
 	find . -name '*.retry' -delete
 	rm -rf .ansible/tmp .ansible/cp
-	pre-commit clean >/dev/null 2>&1 || true
+	$(VENV_RUN)/pre-commit clean >/dev/null 2>&1 || true

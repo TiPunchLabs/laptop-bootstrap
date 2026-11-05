@@ -21,7 +21,7 @@ deb:`), not `dpkg -i`. The `.deb` registers its own `.desktop` entry and icon.
 Bump `obsidian_version` in `defaults/main.yml`, then re-run:
 
 ```bash
-ansible-playbook playbook.yml --tags obsidian
+make play-obsidian   # = uv run --no-sync .venv/bin/ansible-playbook -i inventory.yml playbook.yml --tags obsidian
 ```
 
 The role compares the installed version (`dpkg-query`) to the pinned one and only

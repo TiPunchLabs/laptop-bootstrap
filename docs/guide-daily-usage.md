@@ -216,15 +216,20 @@ bash bin/ansible-vault-pass.sh >/dev/null     # primes a fresh agent
 # retry the commit
 ```
 
-### `ansible-lint` hook fails before linting, or `couldn't resolve module`
+### `couldn't resolve module/action 'community.general.xml'`, or `Failed to spawn: .venv/bin/...`
 
-The hook runs `uv run --no-sync ansible-lint`, i.e. the project's locked
-ansible-lint inside `.venv`. Collections (e.g. `community.general`) are found
-through that venv's Python, whatever its version. A missing or stale `.venv`
-is the usual cause:
+Collections (e.g. `community.general`) live only in `.venv` and are found through
+that venv's Python. The Makefile and the ansible-lint hook therefore run
+`uv run --no-sync .venv/bin/<tool>`. Two causes:
+
+- A bare `ansible-lint` / `ansible-playbook` typed by hand resolved to another
+  install earlier on `PATH` (`type -a ansible-lint`; e.g. pipx in `~/.local/bin`).
+  Use the `make` target or the `uv run --no-sync .venv/bin/...` form.
+- `.venv` is missing or stale (`Failed to spawn`, or a version other than
+  `uv.lock`'s):
 
 ```bash
-uv sync            # recreate / resync .venv from uv.lock
+uv sync --frozen   # recreate / resync .venv from uv.lock
 make lint-ansible  # retry
 ```
 

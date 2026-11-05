@@ -48,7 +48,7 @@ cd laptop-bootstrap
 direnv allow                 # creates .venv and runs `uv sync`
 # or, without direnv:
 uv sync && source .venv/bin/activate
-pre-commit install           # the ansible-lint hook runs from .venv: keep it synced
+pre-commit install           # the ansible-lint hook runs .venv/bin/ansible-lint: keep .venv synced
 ```
 
 ### 3. Secrets
@@ -66,8 +66,10 @@ Without the vault, `group_vars/all/vars.yml` falls back to placeholder values.
 
 ```sh
 make help
-ansible-playbook -i inventory.yml playbook.yml --tags docker --check --diff
+uv run --no-sync .venv/bin/ansible-playbook -i inventory.yml playbook.yml --tags docker --check --diff
 ```
+
+> 💡 The Makefile runs every Ansible tool and pre-commit as `uv run --no-sync .venv/bin/<tool>`. Use the same form by hand: a bare `ansible-playbook` or `ansible-lint` may resolve to a pipx or uv-tool copy earlier on `PATH`, which cannot see the venv's collections (`couldn't resolve module/action 'community.general.xml'`).
 
 > ⚠️ `--check` is a preview, not a guarantee: tasks that depend on commands run earlier (mise listing, downloads) are skipped or approximated. `--diff` can print file contents; don't use it on a role that touches files holding secrets (for example `~/.bashrc`).
 
@@ -92,7 +94,7 @@ make play TAGS=<tag>         # second run of the same scope: expect changed=0
 | Kind | Command | Effect |
 |---|---|---|
 | Diagnostic | `make help`, `make lint`, `make lint-ansible`, `make vault-view`, `make smoke-status` | Read-only on the laptop |
-| Diagnostic | `ansible-playbook -i inventory.yml playbook.yml --tags <tag> --check` | Preview (the Makefile has no check target) |
+| Diagnostic | `uv run --no-sync .venv/bin/ansible-playbook -i inventory.yml playbook.yml --tags <tag> --check` | Preview (the Makefile has no check target) |
 | Modifies the system | `make play TAGS=<tags>`, `make play-<role>` | Applies the selected roles |
 | **Removes components** | `make play-cleanup-legacy`, `make play-cli-tools`, `make play` (no tags), `make uninstall-opera` | Purges packages, repos, keyrings, binaries |
 | Local cleanup | `make clean` | Deletes `*.retry` and local `.ansible`/pre-commit caches |

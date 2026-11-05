@@ -38,6 +38,9 @@ jobs:
       - name: Syntax check
         run: uv run ansible-playbook playbook.yml --syntax-check
 
+      - name: Makefile and ansible-lint hook use .venv tools
+        run: bash bin/check_make_venv_tools.sh
+
   terraform:
     runs-on: ubuntu-latest
     steps:
