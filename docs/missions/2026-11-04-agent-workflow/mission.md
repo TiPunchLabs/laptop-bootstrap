@@ -28,6 +28,11 @@ Third prompt of 2026-11-04: incident accepted as documented, AC-SAFE not
 considered verified; "J'autorise le commit, le push et l'ouverture d'une PR pour
 docs/agent-workflow. Aucune fusion ni application au laptop." Python reservation
 and old-branch deletion not handled in this step.
+Fourth prompt: "GO pour fusionner la PR #57" (repo convention, then sync `main`
+keeping the uncommitted pnpm work; no branch deletion, no laptop, no Python).
+Fifth prompt (follow-up): close the mission documentation, delete
+`docs/project-claude-md`, `docs/agent-workflow` and the mission worktree after
+verification; Codex review, commit, push and PR; "Aucune fusion de la nouvelle PR."
 
 ## Scope
 
@@ -66,14 +71,15 @@ Statuses as of the last transition (see State). Evidence paths under `$E` =
 
 ## State
 
-- Phase: done — verdict PARTIAL (deliverable reviewed PASS_WITH_RESERVATIONS; AC-SAFE not fully verifiable after the Log `incident`)
-- Branch / worktree: `docs/agent-workflow` (no upstream) / `/home/xgueret/Workspace/02-infrastructure/local/laptop-bootstrap-worktrees/docs-agent-workflow`
+- Phase: closed — merged in PR #57 (merge commit `9ee4f8d`). Historical verdict PARTIAL kept: deliverable reviewed PASS_WITH_RESERVATIONS, AC-SAFE NOT_VERIFIED after the Log `incident`
+- Branch / worktree: `docs/agent-workflow` (merged, then deleted local and remote) / `…/laptop-bootstrap-worktrees/docs-agent-workflow` (sent to the trash, pruned). Follow-up: branch `docs/agent-workflow-closeout`, worktree `…/laptop-bootstrap-worktrees/agent-workflow-closeout`
 - Base commit: `de0c4b6` (`origin/main`)
 - Main tree (`../../laptop-bootstrap`): baseline `snap` (final §3 definition) in `$E/main-tree-snap-baseline.txt` = `106b8ac01bd1aac34cbb55c797008d492f7420aab43c339328677092630e0177`. Continuity with the start of the mission: sha256 of `git diff --binary` = `de419b87d062e363c291c8300bbf9717c37f65d5fbe3e4475a8f301fb490fec0` at inspection and when the baseline was taken (`$E/main-tree-initial.patch`, `.sha256`)
+- Main tree after merge: `main` = `origin/main` = `9ee4f8d`, pnpm work still uncommitted; its diff content is unchanged, sha256 of `git diff --binary` now `5b056065…289f` only because the README base blob changed. Follow-up baseline `snap` in `$E/main-tree-snap-baseline-followup.txt`
 - Evidence dir: `~/.local/share/laptop-bootstrap-agent/2026-11-04-agent-workflow/`
 - Reviewer: reviews 1–3 herdr agent `lb-review`, pane `w1Q:p3` (closed). Review 4: new `lb-review` pane `w1Q:p7` started with the fixed §5.3 fence (closed)
 - Review cycle: 4 (one extra cycle authorized by the user; no further one)
-- Next step: PR review and merge by the owner (merge not authorized to agents); after merge, BACKLOG cleanup of `docs/project-claude-md`
+- Next step: owner review and merge of the follow-up PR; nothing else open in this mission
 
 ## Log
 
@@ -94,3 +100,7 @@ Statuses as of the last transition (see State). Evidence paths under `$E` =
 - 2026-11-04 final: pre-commit on 16 staged files exit 0 (gitleaks, Ansible-lint Passed; `$E/precommit-final-2.log`), `git diff --cached --check` exit 0; main tree `snap` = baseline, `git diff --binary` sha256 = `de419b87…fec0`; `report.md` rewritten.
 - 2026-11-04 incident: One hook run after the final checks (`pre-commit run --files mission.md`, to validate the last Log line) was launched by Claude Code without `ANSIBLE_VAULT_PASSWORD_FILE` set to the dummy file and without the credential `unset`, contrary to workflow §4.1. It exited 1, output discarded to `/dev/null` (nothing displayed or written). The ansible-lint hook may have called `bin/ansible-vault-pass.sh` → `pass show ansible/vault`; whether it did, and whether the vault was decrypted in memory, cannot be established (atime of the `pass` entry not updated under `relatime`, inconclusive). Re-run with the dummy file → exit 0 (`$E/precommit-final-3.log`).
 - 2026-11-04 deliver: incident accepted by the owner (AC-SAFE stays NOT_VERIFIED); commit, push and PR authorized, no merge. Remote checked `git@github-xgueret:TiPunchLabs/laptop-bootstrap.git`, `ssh -T` → xgueret. Commit hooks run with the dummy vault and cleaned environment.
+- 2026-11-04 merge: owner GO; head `ab8ceff`, required checks `lint`, `terraform` passed, PR files = local diff; merged by merge commit `9ee4f8d` (repo convention); tree of `main` = `ab8ceff`.
+- 2026-11-04 sync: local patch saved (`$E/main-tree-pre-sync.patch`) and checked on a temporary index against the new `main` (clean); `git merge --ff-only --autostash origin/main`, autostash applied cleanly; the 3 pnpm files equal the expected blobs; the two pre-existing stashes untouched.
+- 2026-11-04 follow-up: cleanup checks. `docs/project-claude-md`: only `6027b10` (one file, `CLAUDE.md`); every substantive item is on `main` (`CLAUDE.md` or the roles/docs it summarizes), the rest was obsolete. `docs/agent-workflow`: `ab8ceff` ancestor of `main`. Mission worktree: no change, only ignored `.venv`, no process or pane inside (observed by Claude Code in the session before deletion; outputs not retained in `$E`, so not independently verifiable — `review-5.md` F5.2). Deleted: worktree (to the trash, `git worktree prune`), local branches (`-d` for the merged one, `-D` for `6027b10`), remote branches (`$E/cleanup-followup.log`). Not touched: `fix/pnpm-global-bin-path` (local only, never pushed), `fix/pnpm-home-after-mise` (local and remote), stashes, evidence, other worktrees. BACKLOG entry "Delete `docs/project-claude-md`" removed.
+- 2026-11-04 review-5: pane `w1Q:p8` (fixed §5.3 fence, clean gate), verdict PASS_WITH_RESERVATIONS; F5.1 (brief said both pnpm branches exist remotely: only `fix/pnpm-home-after-mise` does) and F5.2 (pre-deletion worktree checks not retained) addressed by wording in this file and `report.md`; no further cycle. Snapshot unchanged, pane closed.

@@ -28,14 +28,6 @@ Last review: 2026-11-04.
 - **Command**:
   `git branch -D fix/pnpm-home-after-mise && git push origin --delete fix/pnpm-home-after-mise`
 
-### Delete `docs/project-claude-md`
-- **Status**: superseded, local + remote
-- **Context**: its `CLAUDE.md` (commit `6027b10`) was refreshed and merged with the
-  agent workflow (`docs/missions/2026-11-04-agent-workflow/`).
-- **When**: after that change is merged.
-- **Command**:
-  `git branch -D docs/project-claude-md && git push origin --delete docs/project-claude-md`
-
 ## Deferred improvements
 
 Optional; none of these blocks anything.
