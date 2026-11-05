@@ -194,7 +194,7 @@ itself proves only that the four variable families are absent from the pane.
 - D1 — Commit, push and PR of `docs/agent-workflow`: authorized by the owner
   (2026-11-04), done in this branch (commit hash, PR and CI on GitHub). Merge is
   not authorized to agents: owner decision after PR review.
-- D2 — After merge: BACKLOG cleanup entry for `docs/project-claude-md`; optional
+- D2 — (done in the follow-up, see below) After merge: BACKLOG cleanup entry for `docs/project-claude-md`; optional
   `trash ~/.local/share/laptop-bootstrap-agent/2026-11-04-agent-workflow/venv-py314-unused`.
 - D3 — Separately: the Python 3.12 venv pin (BACKLOG Watch), when you choose.
 
@@ -206,3 +206,23 @@ After D1, in a Herdr pane, `cd` to the repository and start Claude Code with:
 Objective: <e.g. BACKLOG "libvirt — assert hardware KVM support">.
 Follow docs/agent-workflow.md. Extra authorizations: <none | commit | commit+push+PR>.
 ```
+
+## Post-merge follow-up (2026-11-04)
+
+Added after the fact; the sections above are the report as delivered for PR #57.
+The verdict stays PARTIAL and AC-SAFE stays NOT_VERIFIED (Incident).
+
+- PR #57 merged by merge commit `9ee4f8d` after the owner's GO; head `ab8ceff`,
+  required checks passed.
+- `main` synced with `git merge --ff-only --autostash`; the uncommitted pnpm work
+  (3 files) re-applied cleanly and matches the expected contents; stashes untouched.
+- Deleted after verification: branch `docs/agent-workflow` (merged) and
+  `docs/project-claude-md` (`6027b10`, content superseded by `CLAUDE.md` on
+  `main`), local and remote; the mission worktree sent to the trash and pruned (clean and inactive as observed
+  by Claude Code before deletion; those check outputs were not retained, so the
+  condition is implementer-reported, not independently verified). Kept: `fix/pnpm-global-bin-path` (local only), `fix/pnpm-home-after-mise`
+  (local and remote),
+  stashes, external evidence. Details: `mission.md` Log.
+- Codex review 5 (follow-up diff): PASS_WITH_RESERVATIONS; F5.1, F5.2 (minor,
+  wording/evidence) addressed above.
+- Python 3.12 venv pin: still a separate BACKLOG Watch item.
