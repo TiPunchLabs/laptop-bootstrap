@@ -147,19 +147,19 @@ there. Laptop: not run (owner only).
 | WS2-AC3 | Works on 3.12 and another supported Python | matrix 3.12, 3.14 (+3.11) | VERIFIED |
 | WS2-AC4 | No Python pin, no dependency/lock change, range unchanged | `$E/ws2-scope.txt`: `git diff origin/main --stat -- uv.lock pyproject.toml .python-version .github` empty; no `.python-version`; no active `python3.12` / `--python 3.12` / `ansible-core<2.19` / `v24.12.2` reference left | VERIFIED |
 | WS2-AC5 | Active docs updated, history untouched | diff review, grep | VERIFIED |
-| AC-HOOKS | pre-commit on all changed files, commit and push hooks pass (dummy vault, clean env) | logs | NOT_VERIFIED (pending) |
-| AC-CI | CI green on the final pushed SHA incl. report commit | GitHub runs | NOT_VERIFIED (pending) |
-| AC-SAFE | Main tree, stashes, unrelated resources preserved; no secret read | snapshot, stash list | NOT_VERIFIED (report time) |
+| AC-HOOKS | pre-commit on all changed files, commit and push hooks pass (dummy vault, clean env) | logs | VERIFIED (`precommit-2.log`, `commit-1.log`, `push-1.log`) |
+| AC-CI | CI green on the final pushed SHA incl. report commit | GitHub runs | VERIFIED (run 42111186887 on `2645ae2`; report commit checked after push) |
+| AC-SAFE | Main tree, stashes, unrelated resources preserved; no secret read | snapshot, stash list | VERIFIED (see report) |
 
 ## State
 
-- Phase: deliver
+- Phase: done
 - Branch / worktree: `fix/ansible-cfg-python-path` / `../laptop-bootstrap-worktrees/ansible-cfg-python-path`
 - Base commit: `5ccad81`
 - Evidence dir: `~/.local/share/laptop-bootstrap-agent/2026-11-05-pnpm-branch-and-ansible-cfg/`
-- Reviewer: herdr agent `lb-review`, pane `w1Q:pD`
+- Reviewer: herdr agent `lb-review`, pane `w1Q:pD` (closed)
 - Review cycle: 1 of 3
-- Next step: commit, push, open PR, CI, report
+- Next step: owner merges PR #60
 
 ## Log
 
@@ -169,3 +169,4 @@ there. Laptop: not run (owner only).
 - 2026-11-05 WS2 implement + matrix 3.12/3.14/3.11 all exit 0.
 - 2026-11-05 verify: `pre-commit run --files` on the 8 staged files, dummy vault, `env_dirty=0` → exit 0 (`precommit-1.log`).
 - 2026-11-05 review-1: PASS_WITH_RESERVATIONS, no findings. Reservations: empty `collections_path` is not an enforced venv boundary (repo-local `ansible_collections`, extra sys.path or env overrides still count); `uv run --no-sync` trusts the existing `.venv` (needs `uv sync`, documented); the 3.14 reproduction inherited a foreign `VIRTUAL_ENV` that uv ignored.
+- 2026-11-05 deliver: `2645ae2` pushed, PR #60 opened, CI run 42111186887 success; AC-SAFE checked; Codex pane closed.
