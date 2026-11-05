@@ -73,11 +73,11 @@ Hosted runner in CI: `2.338.2`, image `ubuntu-26.04`.
 | AC2 | Breaking changes and runner requirements assessed from official notes; none affects `ci.yml` | release notes + `action.yml` diff vs inputs used in `ci.yml` | VERIFIED |
 | AC3 | Dependabot branch up to date with `main` | `git merge-base origin/dependabot/…/setup-python-7 origin/main` = `origin/main` | VERIFIED |
 | AC4a | CI green with setup-python v7 on the rebased Dependabot head, Python 3.12 unchanged | run 42063873439 on `4cd6792`: lint + terraform `success`; log l.269 `actions/setup-python@v7 (SHA:6d4fd22…)`, l.381 `Successfully set up CPython (3.12.16)` | VERIFIED |
-| AC4b | Same on the final PR head (after the bookkeeping commit) | run on the final head SHA, job conclusions | NOT_VERIFIED (pending push) |
+| AC4b | Same on the final PR head (after the bookkeeping commit) | run on the final head SHA, job conclusions | VERIFIED (run 42066320239 on `cdeb5b3`: lint, terraform success; PR `MERGEABLE`/`CLEAN`) |
 | AC5 | Workflow diff limited to the major bump; project Python version and `ansible.cfg` untouched | `git diff origin/main -- .github ansible.cfg pyproject.toml .python-version` | VERIFIED |
 | AC6 | `BACKLOG.md` updated per §8 (entry removed; untracked follow-up recorded) | diff review | VERIFIED |
-| AC7 | Local pre-commit hooks pass on changed files with dummy vault and cleaned env | `pre-commit run --files …` | see State/Log |
-| AC-SAFE | Main tree, both stashes, other worktree preserved; no secret read; hooks not bypassed | snapshot compare, `git stash list`, `git worktree list` | see report |
+| AC7 | Local pre-commit hooks pass on changed files with dummy vault and cleaned env | `pre-commit run --files …` | VERIFIED (exit 0; commit and pre-push hooks passed) |
+| AC-SAFE | Main tree, both stashes, other worktree preserved; no secret read; hooks not bypassed | snapshot compare, `git stash list`, `git worktree list` | VERIFIED (see report) |
 
 ## Plan
 
@@ -98,13 +98,13 @@ PR is meant to be merged now.
 
 ## State
 
-- Phase: report
+- Phase: done
 - Branch / worktree: `ci/setup-python-v7` / `../laptop-bootstrap-worktrees/setup-python-v7`
 - Base commit: `4cd6792` (Dependabot rebase onto `7a7c1b7`)
 - Evidence dir: `~/.local/share/laptop-bootstrap-agent/2026-11-05-setup-python-v7/`
-- Reviewer: herdr agent `lb-review`, pane `w1Q:pB`
+- Reviewer: herdr agent `lb-review`, pane `w1Q:pB` (closed)
 - Review cycle: 2 of 3
-- Next step: commit, push to PR #45, CI on final head, report
+- Next step: owner merges PR #45
 
 ## Log
 
@@ -115,3 +115,5 @@ PR is meant to be merged now.
 - 2026-11-05 fix-1: saved `pr-state.txt` and `upstream-pr1333-files.txt`; AC1 evidence quoted; AC4 split into AC4a (VERIFIED) / AC4b (pending).
 - 2026-11-05 verify: `pre-commit run --files` (ci.yml, BACKLOG.md, mission docs), dummy vault, `env_dirty=0` → exit 0 (`precommit-2.log`).
 - 2026-11-05 review-2: PASS_WITH_RESERVATIONS, no findings; reservations: verify final-head CI and AC-SAFE before reporting.
+- 2026-11-05 commit/push: `cdeb5b3` pushed fast-forward onto PR #45 (hooks passed); CI run 42066320239 success.
+- 2026-11-05 report: AC-SAFE checked (main tree, stashes, other worktree unchanged); Codex pane closed.
