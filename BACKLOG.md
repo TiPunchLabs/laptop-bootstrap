@@ -8,10 +8,7 @@ Last review: 2026-11-05.
 
 ## In progress
 
-### Dependabot PR #41 — `actions/checkout` 6 → 7
-- **Status**: open, not reviewed yet (found while handling PR #45, see
-  `docs/missions/2026-11-05-setup-python-v7/`).
-- **Next step**: check the release notes, `@dependabot rebase`, check CI, merge.
+Nothing in progress.
 
 ## Cleanup
 
@@ -25,6 +22,13 @@ Last review: 2026-11-05.
 ## Deferred improvements
 
 Optional; none of these blocks anything.
+
+### CI — least-privilege `GITHUB_TOKEN`
+- `ci.yml` has no `permissions:` block and the repository default workflow
+  permission is `write`; `actions/checkout` keeps its default
+  `persist-credentials: true`. No job runs git after checkout, so
+  `permissions: contents: read` and `persist-credentials: false` would cost nothing.
+- Source: `docs/missions/2026-11-05-checkout-v7/` (not a v7 change; out of that scope).
 
 ### libvirt — assert hardware KVM support
 - Add an early check (e.g. `/dev/kvm` exists, `kvm_amd` or `kvm_intel` loaded)
