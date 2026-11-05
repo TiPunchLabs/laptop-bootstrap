@@ -8,9 +8,10 @@ Last review: 2026-11-05.
 
 ## In progress
 
-### Dependabot PR #45 — `actions/setup-python` 6 → 7
-- **Status**: open since 2026-07-23
-- **Next step**: rebase via `@dependabot rebase`, check CI, merge.
+### Dependabot PR #41 — `actions/checkout` 6 → 7
+- **Status**: open, not reviewed yet (found while handling PR #45, see
+  `docs/missions/2026-11-05-setup-python-v7/`).
+- **Next step**: check the release notes, `@dependabot rebase`, check CI, merge.
 
 ## Cleanup
 
