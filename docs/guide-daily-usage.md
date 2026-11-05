@@ -216,6 +216,18 @@ bash bin/ansible-vault-pass.sh >/dev/null     # primes a fresh agent
 # retry the commit
 ```
 
+### `ansible-lint` hook fails before linting, or `couldn't resolve module`
+
+The hook runs `uv run --no-sync ansible-lint`, i.e. the project's locked
+ansible-lint inside `.venv`. Collections (e.g. `community.general`) are found
+through that venv's Python, whatever its version. A missing or stale `.venv`
+is the usual cause:
+
+```bash
+uv sync            # recreate / resync .venv from uv.lock
+make lint-ansible  # retry
+```
+
 ### Smoke VM reports `changed≠0` on second replay
 
 This is a non-idempotent task — the role does work it shouldn't repeat. Find which task changed:

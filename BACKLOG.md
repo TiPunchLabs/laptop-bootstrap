@@ -12,12 +12,7 @@ Nothing in progress.
 
 ## Cleanup
 
-### Delete `fix/pnpm-home-after-mise`
-- **Status**: stale branch, local + remote
-- **Context**: PR #50 was squash-merged as `5a7fcfd`; the branch tree is
-  identical to that commit, but git does not see it as merged, so `-d` refuses.
-- **Command**:
-  `git branch -D fix/pnpm-home-after-mise && git push origin --delete fix/pnpm-home-after-mise`
+Nothing to clean up.
 
 ## Deferred improvements
 
@@ -60,13 +55,6 @@ Optional; none of these blocks anything.
   package names in `vars/`.
 - GitHub's `ubuntu-latest` runner moves to Ubuntu 26 from 2026-10-19, so CI
   now matches the laptop's release.
-
-### `ansible.cfg` pins the venv to Python 3.12
-- `collections_path = ./.venv/lib/python3.12/site-packages/ansible_collections`.
-  A `.venv` built on another Python (uv picked 3.14 for a fresh worktree on
-  2026-11-04) leaves the pre-commit ansible-lint hook unable to resolve
-  `community.general.xml`. Workaround: `uv sync --python 3.12`. Fix if it bites
-  again: pin `.python-version` or derive the path.
 
 ### `pnpm setup` (pnpm ≥ 11) is not neutralized
 - It writes `export PATH="$PNPM_HOME/bin:$PATH"` (prefix-only guard) and installs

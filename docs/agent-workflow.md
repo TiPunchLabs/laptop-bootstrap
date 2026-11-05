@@ -129,9 +129,8 @@ Every objective gets at least one acceptance criterion per expected outcome and
    clean or not on `main`, use a worktree:
    `git worktree add -b <type>/<slug> ../laptop-bootstrap-worktrees/<slug> origin/main`,
    then `git branch --unset-upstream` (so a later push cannot target `main`) and
-   `uv sync --frozen --python 3.12` inside it: `ansible.cfg` hardcodes
-   `collections_path = ./.venv/lib/python3.12/...`, and a venv on another Python
-   makes the pre-commit ansible-lint hook fail with `couldn't resolve module`.
+   `uv sync --frozen` inside it: the pre-commit ansible-lint hook runs that
+   worktree's own `.venv` (`uv run --no-sync ansible-lint`) and fails without it.
 4. **Verify** — §4. Record each check with its exit status in `mission.md`.
 5. **Review** — §5.
 6. **Fix and re-review** — at most **2 correction cycles** after the first review

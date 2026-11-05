@@ -43,7 +43,7 @@ direnv allow
 # or
 uv sync && source .venv/bin/activate
 
-# Install pre-commit hooks
+# Install pre-commit hooks (the ansible-lint hook runs from .venv, via uv)
 pre-commit install
 ```
 
