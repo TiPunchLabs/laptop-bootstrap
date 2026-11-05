@@ -155,11 +155,13 @@ Run it only after `docker` and `vagrant` have run at least once since the keyrin
 The NodeSource `nodejs` apt package and the standalone pnpm under `~/.local/share/pnpm` are **kept on purpose**. The pnpm global packages still live in `PNPM_HOME`.
 
 - **Interactive shells** (`~/.bashrc` → `mise activate`): the mise `node`/`pnpm` come first. `cli_tools` moves the pnpm installer's `PNPM_HOME` entry to the end of `PATH` so it can't shadow mise.
+- **pnpm ≥ 11 global bins** go to `$PNPM_HOME/bin`, not `$PNPM_HOME`. A second managed block at the end of `~/.bashrc` (after the pnpm installer's, so it uses the final `PNPM_HOME`) appends that directory to `PATH` (guarded, so no duplicates). Keep any later line that sets `PNPM_HOME` above that block: Ansible places it at the end only once. Without it, `pnpm add -g` fails with `ERR_PNPM_GLOBAL_BIN_DIR_NOT_IN_PATH`. Don't run `pnpm setup`: it prepends `$PNPM_HOME/bin` and installs its own `pnpm` there, which then shadows mise's (the `replace` above only rewrites the pnpm ≤ 10 `$PNPM_HOME` line).
 - **Non-interactive contexts** (cron, systemd units, `bash -c`, IDE tasks that don't read `~/.bashrc`): mise is not activated, so `/usr/bin/node` and the standalone pnpm still resolve.
 
 ```sh
 type -a node pnpm            # first hit under ~/.local/share/mise/installs/
 mise current node pnpm
+pnpm bin -g                  # ~/.local/share/pnpm/bin, listed in PATH after /usr/bin
 ```
 
 **Rollback:** `mise unuse -g node pnpm` (it also prunes the installs; add `--no-prune` to keep them), then `exec bash`: `/usr/bin/node` and the standalone pnpm resolve again.

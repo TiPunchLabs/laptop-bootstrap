@@ -42,4 +42,7 @@ vagrant ssh -c "grep -c 'ANSIBLE MANAGED: cli_tools shell hooks' ~/.bashrc"
 
 vagrant ssh -c "sed -n '/BEGIN ANSIBLE MANAGED: cli_tools/,/END ANSIBLE MANAGED: cli_tools/p' ~/.bashrc"
 # Expected: four eval lines in order — mise activate, fzf --bash, starship init, direnv hook
+
+vagrant ssh -c "sed -n '/BEGIN ANSIBLE MANAGED: cli_tools pnpm global bin/,/END ANSIBLE MANAGED: cli_tools pnpm global bin/p' ~/.bashrc"
+# Expected: the PNPM_HOME export and the guarded "$PNPM_HOME/bin" PATH append, at the end of the file
 ```

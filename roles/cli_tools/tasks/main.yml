@@ -63,12 +63,26 @@
 # The PNPM_HOME block written by pnpm's standalone installer prepends to PATH
 # after `mise activate` ran, and mise keeps entries added after activation
 # ahead of its own — the standalone pnpm then shadows mise's. Append instead:
-# PNPM_HOME stays on PATH for the global bins, mise's pnpm wins. No-op when
-# the installer block is absent.
+# PNPM_HOME stays on PATH for the global bins linked by pnpm <=10, mise's pnpm
+# wins. pnpm >=11's $PNPM_HOME/bin comes from the block below. No-op when the
+# installer block is absent.
 - name: Move PNPM_HOME behind mise-managed binaries in .bashrc
   ansible.builtin.replace:
     path: "/home/{{ bootstrap_local_user }}/.bashrc"
     regexp: '^(\s*\*\) export PATH=)"\$PNPM_HOME:\$PATH"(\s*;;)$'
     replace: '\1"$PATH:$PNPM_HOME"\2'
+  become: true
+  become_user: "{{ bootstrap_local_user }}"
+
+# After everything else, so PNPM_HOME is final (see cli_tools_pnpm_bashrc_block).
+# EOF only on first insertion: blockinfile keeps an existing block in place.
+- name: Install pnpm global-bin PATH block at the end of .bashrc
+  ansible.builtin.blockinfile:
+    path: "/home/{{ bootstrap_local_user }}/.bashrc"
+    marker: "# {mark} ANSIBLE MANAGED: cli_tools pnpm global bin"
+    insertafter: EOF
+    block: "{{ cli_tools_pnpm_bashrc_block }}"
+    create: true
+    mode: '0644'
   become: true
   become_user: "{{ bootstrap_local_user }}"
