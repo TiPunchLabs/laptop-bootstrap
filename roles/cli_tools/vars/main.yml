@@ -28,3 +28,16 @@ cli_tools_bashrc_block: |
   eval "$(fzf --bash)"
   eval "$(starship init bash)"
   eval "$(direnv hook bash)"
+
+# pnpm >=11 links global bins into $PNPM_HOME/bin (not $PNPM_HOME) and refuses
+# `pnpm add -g` until that dir is on PATH. Appended, not prepended, so a global
+# bin can't shadow the mise-managed node/pnpm. Kept at the end of .bashrc, after
+# the standalone installer's block, so it uses the PNPM_HOME that block sets
+# (custom location or XDG_DATA_HOME included); otherwise pnpm's own Linux
+# default. Stands in for `pnpm setup`, which would prepend.
+cli_tools_pnpm_bashrc_block: |
+  export PNPM_HOME="${PNPM_HOME:-${XDG_DATA_HOME:-$HOME/.local/share}/pnpm}"
+  case ":$PATH:" in
+    *":$PNPM_HOME/bin:"*) ;;
+    *) export PATH="$PATH:$PNPM_HOME/bin" ;;
+  esac

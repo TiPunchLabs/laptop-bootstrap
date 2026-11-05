@@ -4,16 +4,9 @@ Open work, cleanup and deferred improvements. GitHub issues are disabled on this
 repo, so this file is the single place to track them. Remove an entry once it is
 done (git history keeps the trace).
 
-Last review: 2026-11-04.
+Last review: 2026-11-05.
 
 ## In progress
-
-### Commit the pnpm global bin path fix
-- **Status**: uncommitted work in the working tree
-- **Branch**: `fix/pnpm-global-bin-path` (no commits yet, not pushed)
-- **Files**: `README.md`, `roles/cli_tools/tasks/main.yml`,
-  `roles/cli_tools/vars/main.yml`
-- **Next step**: `git switch fix/pnpm-global-bin-path`, then commit and `/ship`.
 
 ### Dependabot PR #45 — `actions/setup-python` 6 → 7
 - **Status**: open since 2026-07-23
@@ -69,3 +62,10 @@ Optional; none of these blocks anything.
   2026-11-04) leaves the pre-commit ansible-lint hook unable to resolve
   `community.general.xml`. Workaround: `uv sync --python 3.12`. Fix if it bites
   again: pin `.python-version` or derive the path.
+
+### `pnpm setup` (pnpm ≥ 11) is not neutralized
+- It writes `export PATH="$PNPM_HOME/bin:$PATH"` (prefix-only guard) and installs
+  its own `pnpm` in `$PNPM_HOME/bin`, which would shadow mise's. The `cli_tools`
+  `replace` task only rewrites the pnpm ≤ 10 `"$PNPM_HOME:$PATH"` line; README says
+  not to run `pnpm setup`. Handle it in the role if it ever appears in `~/.bashrc`.
+  Source: `docs/missions/2026-11-05-pnpm-global-bin-path/`.
