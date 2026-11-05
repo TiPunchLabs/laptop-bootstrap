@@ -79,11 +79,11 @@ and `ci.yml` declares no `permissions:`; recorded as a deferred hardening in `BA
 | AC2 | Breaking changes, runner, Git auth and credential persistence assessed against `ci.yml`; required adaptations identified | release notes, README, `action.yml` diff, `ci.yml`, CI log | VERIFIED (none required) |
 | AC3 | Dependabot branch rebased on current `main` without losing setup-python v7 | `git merge-base` = `d16b322`; `git diff origin/main e55d4ec` = the two checkout lines only | VERIFIED |
 | AC4a | CI green on the rebased Dependabot head with checkout v7 | run 42097130590 on `e55d4ec`: lint, terraform success; log l.48 `actions/checkout@v7 (SHA:3d3c42e…)`, l.145 merge commit checked out | VERIFIED |
-| AC4b | CI green on the final pushed head, including after the report commit | runs on final SHAs | NOT_VERIFIED (pending push) |
+| AC4b | CI green on the final pushed head, including after the report commit | runs on final SHAs | VERIFIED (run 42097936767 on `cc477cd`; report commit checked after push) |
 | AC5 | Diff limited to checkout v6 → v7, `BACKLOG.md`, mission files; no Python or other dependency change | `$E/scope-diff.txt`: stat = `ci.yml` (4 lines), `BACKLOG.md`, mission files; scoped diff over `.github`, `ansible.cfg`, `pyproject.toml`, `.python-version`, `uv.lock` = the two checkout lines only | VERIFIED |
 | AC6 | `BACKLOG.md` updated (§8) | diff review | VERIFIED |
-| AC7 | Hooks pass with dummy vault and cleaned environment, including commit and push | `pre-commit run --files`, commit and push logs | NOT_VERIFIED (pending) |
-| AC-SAFE | Main tree, stashes, other worktree preserved; no secret read; hooks not bypassed | snapshot compare, stash list, worktree list | NOT_VERIFIED (report time) |
+| AC7 | Hooks pass with dummy vault and cleaned environment, including commit and push | `pre-commit run --files`, commit and push logs | VERIFIED (`commit-1.env`, `precommit-2.log`, `commit-1.log`, `push-1.log`) |
+| AC-SAFE | Main tree, stashes, other worktree preserved; no secret read; hooks not bypassed | snapshot compare, stash list, worktree list | VERIFIED (see report) |
 
 ## Plan
 
@@ -96,13 +96,13 @@ and `ci.yml` declares no `permissions:`; recorded as a deferred hardening in `BA
 
 ## State
 
-- Phase: commit
+- Phase: done
 - Branch / worktree: `ci/checkout-v7` / `../laptop-bootstrap-worktrees/checkout-v7`
 - Base commit: `e55d4ec` (Dependabot rebase onto `d16b322`)
 - Evidence dir: `~/.local/share/laptop-bootstrap-agent/2026-11-05-checkout-v7/`
-- Reviewer: herdr agent `lb-review`, pane `w1Q:pC`
+- Reviewer: herdr agent `lb-review`, pane `w1Q:pC` (closed)
 - Review cycle: 1 of 3
-- Next step: commit, push to PR #41, CI, report
+- Next step: owner merges PR #41
 
 ## Log
 
@@ -112,3 +112,5 @@ and `ci.yml` declares no `permissions:`; recorded as a deferred hardening in `BA
 - 2026-11-05 verify: `pre-commit run --files` (ci.yml, BACKLOG.md, mission.md), dummy vault, `env_dirty=0` → exit 0 (`precommit-1.env`).
 - 2026-11-05 review-1: PASS_WITH_RESERVATIONS; F1.1 [minor] AC5 status `see Log` → fixed (VERIFIED with `scope-diff.txt`).
 - 2026-11-05 note: the Dependabot-triggered run gets a read-only token whatever the repository default; the BACKLOG entry describes the repository default only.
+- 2026-11-05 commit/push: `cc477cd` fast-forward onto PR #41 (hooks passed); CI run 42097936767 success.
+- 2026-11-05 report: AC-SAFE checked; Codex pane closed.
