@@ -48,7 +48,7 @@ cd laptop-bootstrap
 direnv allow                 # creates .venv and runs `uv sync`
 # or, without direnv:
 uv sync && source .venv/bin/activate
-pre-commit install
+pre-commit install           # the ansible-lint hook runs from .venv: keep it synced
 ```
 
 ### 3. Secrets

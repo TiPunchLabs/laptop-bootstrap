@@ -68,13 +68,16 @@ repos:
         files: \.(yml|yaml)$
         stages: [pre-commit]
 
-  - repo: https://github.com/ansible/ansible-lint
-    rev: v24.12.2
+  # Runs the uv.lock ansible-lint inside .venv (same as CI), so collections
+  # resolve from the venv on any Python. Needs `uv sync` first.
+  - repo: local
     hooks:
       - id: ansible-lint
-        additional_dependencies:
-          - jmespath
-          - ansible-core<2.19
+        name: Ansible-lint
+        entry: uv run --no-sync ansible-lint -v --force-color
+        language: system
+        pass_filenames: false
+        always_run: true
 
   - repo: https://github.com/antonbabenko/pre-commit-terraform
     rev: v1.99.0
