@@ -119,6 +119,10 @@ make smoke-up / smoke-replay TAGS=<tag> / smoke-ssh / smoke-down / smoke-status
 make play TAGS=<tag>             # REAL LAPTOP — owner only
 ```
 
+Targets run tools as `uv run --no-sync .venv/bin/<tool>` (never a bare name from
+PATH, which may be a pipx copy without the venv's collections);
+`bin/check_make_venv_tools.sh` (CI) enforces it.
+
 The smoke VM excludes the vault from rsync and stubs `vault_*` vars in
 `test/smoke/Vagrantfile`; it skips the `vagrant` tag by default (nested virt).
 

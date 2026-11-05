@@ -12,7 +12,12 @@ Nothing in progress.
 
 ## Cleanup
 
-Nothing to clean up.
+### `.claude/commands/*.md` call bare Ansible tools
+- `lint.md`, `quality.md`, `clean.md`, `update-readme.md` run `ansible-playbook`
+  / `pre-commit` by bare name, which can resolve to a pipx copy without the venv's
+  collections. They are synced from global commands (`/sync-commands`), so adapt
+  them there or switch them to `make` targets / `uv run --no-sync .venv/bin/<tool>`.
+  Source: `docs/missions/2026-11-05-make-venv-tools/`.
 
 ## Deferred improvements
 
@@ -48,6 +53,13 @@ Optional; none of these blocks anything.
 - Source: `docs/adr/0001-unified-cli-tool-management-with-mise.md:65`
 
 ## Watch
+
+### A fresh `uv sync` picks the newest Python (3.15)
+- No `.python-version`; `requires-python >=3.10` lets uv choose 3.15.1, for which
+  `rpds-py` 0.30.0 (via ansible-lint) has no wheel and fails to build (PyO3 max
+  3.14). Existing `.venv`s (3.12) are unaffected; new worktrees need `--python`.
+  Pinning or capping Python is an owner decision. Source:
+  `docs/missions/2026-11-05-make-venv-tools/`.
 
 ### Ubuntu 26.04 package renames
 - `qemu-kvm` became a virtual package on 26.04 (fixed in PR #53). Other

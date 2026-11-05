@@ -51,7 +51,7 @@ None. (Relies on `bootstrap_local_user`, set by the `bootstrap` role.)
 ## Example
 
 ```bash
-ansible-playbook playbook.yml --tags syncthing
-# or
 make play-syncthing
+# or
+uv run --no-sync .venv/bin/ansible-playbook -i inventory.yml playbook.yml --tags syncthing
 ```

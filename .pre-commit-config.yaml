@@ -68,13 +68,14 @@ repos:
         files: \.(yml|yaml)$
         stages: [pre-commit]
 
-  # Runs the uv.lock ansible-lint inside .venv (same as CI), so collections
-  # resolve from the venv on any Python. Needs `uv sync` first.
+  # Runs the uv.lock ansible-lint from .venv as in the Makefile: explicit path (no
+  # fallback to a PATH copy that cannot see the venv's collections), .venv/bin first
+  # on PATH via uv. Needs `uv sync --frozen` first.
   - repo: local
     hooks:
       - id: ansible-lint
         name: Ansible-lint
-        entry: uv run --no-sync ansible-lint -v --force-color
+        entry: uv run --no-sync .venv/bin/ansible-lint -v --force-color
         language: system
         pass_filenames: false
         always_run: true
