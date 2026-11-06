@@ -44,7 +44,8 @@ right after the first install.
 | `open_webui_ollama_base_url` | `http://host.docker.internal:11434` | `OLLAMA_BASE_URL`, read on the **first start only** (see [Ollama](#ollama)) |
 | `open_webui_health_timeout` | `300` | Seconds the run waits for `healthy` |
 
-Override in `group_vars/all/vars.yml` (or `-e` for a one-off). None of them is a secret.
+Override in `group_vars/all/vars.yml` (or `-e` for a one-off; not for
+`open_webui_version`, see [Updating](#updating)). None of them is a secret.
 
 Fixed by the role: restart policy `unless-stopped`; health check
 `curl /health | jq 'status == true'` (the image's own test) every 30 s with a 120 s
@@ -104,16 +105,46 @@ Ollama models appear in the model selector.
 
 ## Updating
 
-1. Back up the volume (below).
+`open_webui_version` is the only input that selects the release: the role runs the
+image `{{ open_webui_image }}:{{ open_webui_version }}`. Changing it and rerunning the
+role pulls that tag and recreates the container on the same volume; the database,
+uploads and the secret key file stay in the volume. A second run with the same
+version reports `changed=0`. Verified on a VM, v0.12.5 → v0.13.0 (mission
+`2026-11-05-open-webui`).
+
+1. Back up the volume (below). An update is a one-way database migration: this
+   backup is the only way back (see [Rollback](#rollback)).
 2. Read the release notes between the current and the new tag
    (<https://github.com/open-webui/open-webui/releases>), in particular
    "Database Migrations".
-3. Bump `open_webui_version` (in `defaults/main.yml` through a PR, or override it).
-4. `make play-open-webui`: the new image is pulled, the container recreated on the
-   same volume, migrations run at start, and the run waits for `healthy`.
+3. Set the new tag where every later run will see it. Use one of these:
+   - Through a PR, for every laptop: edit `open_webui_version` in
+     `roles/open_webui/defaults/main.yml`.
+   - For this laptop only, without changing the role: add
+     `open_webui_version: "vX.Y.Z"` to `group_vars/all/vars.yml`. It overrides the
+     role default, so remove it when the default catches up.
+4. Deploy and check:
+
+   ```bash
+   make play-open-webui    # pulls vX.Y.Z, recreates the container, waits for healthy
+   docker inspect open-webui --format '{{.Config.Image}}'    # …/open-webui:vX.Y.Z
+   curl -fsS http://127.0.0.1:3030/api/config | jq -r .version  # X.Y.Z
+   make play-open-webui    # second run: changed=0
+   ```
+
+   Sign in again with an existing account: your account and its chats must still be
+   there.
+
+Do not use `-e open_webui_version=…` for a lasting update, for example
+`uv run --no-sync .venv/bin/ansible-playbook -i inventory.yml playbook.yml --tags open-webui -e open_webui_version=vX.Y.Z`.
+`make` targets do not pass `-e`, so the next `make play-open-webui` or `make play`
+goes back to the default tag. That is a downgrade on a database that is already
+migrated, which is the unsupported case described under [Rollback](#rollback).
 
 There is no automatic update (no Watchtower, `pull: missing`): a tag already present
-is never re-pulled, and nothing changes until the version variable changes.
+is never re-pulled, and nothing changes until the version variable changes. The
+previous image stays on disk, which makes a rollback faster. Remove it with
+`docker image rm ghcr.io/open-webui/open-webui:<old tag>` once you no longer need it.
 
 ## Backup and restore
 
@@ -146,7 +177,8 @@ written by a newer one. A rollback needs the backup taken *before* the update:
 2. Restore that backup with the restore command above, **without** the final
    `docker start`: starting the current (newer) image would migrate the restored
    database forward again.
-3. Set `open_webui_version` back to the previous tag.
+3. Set `open_webui_version` back to the previous tag, where you set it in step 3 of
+   [Updating](#updating) (role default through a PR, or `group_vars/all/vars.yml`).
 4. `make play-open-webui`: the role recreates the container on the previous
    image, which starts on the restored database.
 

@@ -152,3 +152,24 @@ Preview without changes: `uv run --no-sync .venv/bin/ansible-playbook -i invento
   `CORS_ALLOW_ORIGIN`.
 - Pi-hole record → proxy host; TLS from the homelab internal CA.
 - Recorded in `BACKLOG.md` (Deferred) and `roles/open_webui/README.md`.
+
+## Post-merge record (2026-11-06)
+
+Added by the closeout mission `docs/missions/2026-11-06-open-webui-closeout/`.
+
+- Merge: PR #62 merged by the owner on 2026-11-06T01:25:15Z, merge commit
+  `67db4bcf4fab47e9a0dd9044e8e0c1a0807b0746` on `main`; head `2356c04` is an
+  ancestor of `origin/main`.
+- Owner-confirmed (the owner's statement, quoted as given, not re-executed by the
+  agent): "Open WebUI is operational on the laptop." The statement is general: it
+  does not itemise the browser UI, the admin account, the real Ollama or model
+  inference, so those individual checks are recorded as not separately confirmed.
+- Agent read-only probe of the laptop (2026-11-06, no change made): container
+  `open-webui` runs `ghcr.io/open-webui/open-webui:v0.13.0`, `Up (healthy)`,
+  published `127.0.0.1:3030->8080/tcp` only (`ss`: `127.0.0.1:3030`), restart
+  `unless-stopped`, volume `open-webui` on `/app/backend/data`; `/health`
+  `{"status":true}`; `/api/config` version `0.13.0`. The `brain-rag_open-webui`
+  volume is still present (this closeout did not touch it).
+- Not executed by the agent on the laptop, and not individually confirmed by the
+  owner: second `make play-open-webui` for `changed=0`, Ollama reachability from
+  the container, model selector, inference.
