@@ -19,9 +19,29 @@ Nothing in progress.
   them there or switch them to `make` targets / `uv run --no-sync .venv/bin/<tool>`.
   Source: `docs/missions/2026-11-05-make-venv-tools/`.
 
+### Smoke VM cannot run roles that use `community.*` modules
+- `test/smoke/Vagrantfile` installs the distro `ansible-core`, which ships no
+  collections: `make smoke-replay TAGS=open-webui` (community.docker) and
+  `TAGS=syncthing` (community.general) cannot resolve their modules in the VM.
+  The open-webui mission drove the VM over SSH with the venv's Ansible instead.
+  Options: install the matching collections in the VM provisioner, or run the
+  replay from the host venv. Source: `docs/missions/2026-11-05-open-webui/`.
+
+### `vagrant` role relies on the untagged run for `python3-debian`
+- Its `deb822_repository` task needs `python3-debian`, installed only by the
+  untagged `bootstrap_packages`; `--tags vagrant` fails on a host that never had a
+  full run. The `docker` role now installs it itself. Source: `docs/missions/2026-11-05-open-webui/`.
+
 ## Deferred improvements
 
 Optional; none of these blocks anything.
+
+### open-webui — homelab reverse proxy `openwebui.internal`
+- Belongs to the homelab (Pi-hole record, Caddy, internal TLS), not this repo.
+  On the laptop side it will need: a reachable bind (`open_webui_bind_address` =
+  LAN address, or a proxy on the laptop), a `WEBUI_URL` variable in `open_webui`,
+  and a CORS check. Details: `roles/open_webui/README.md` → Future homelab
+  integration. Source: `docs/missions/2026-11-05-open-webui/`.
 
 ### CI — least-privilege `GITHUB_TOKEN`
 - `ci.yml` has no `permissions:` block and the repository default workflow
@@ -53,6 +73,19 @@ Optional; none of these blocks anything.
 - Source: `docs/adr/0001-unified-cli-tool-management-with-mise.md:65`
 
 ## Watch
+
+### Ollama listens on every interface
+- `ollama.service` drop-in sets `OLLAMA_HOST=0.0.0.0`, so the unauthenticated
+  Ollama API is reachable from the LAN. Open WebUI's container needs it on the
+  Docker bridge only (`172.17.0.1`); narrowing it is an owner decision (the host
+  `ollama` CLI then needs `OLLAMA_HOST` too). Not managed by this repo. Source: `docs/missions/2026-11-05-open-webui/`.
+
+### Unmanaged Open WebUI leftovers on the laptop
+- Volume `brain-rag_open-webui` (1.0 G, holds a `webui.db`, compose project
+  `~/Workspace/brain-rag`), image `ghcr.io/open-webui/open-webui:main`, and
+  `~/Workspace/07-local/openWebUI/` (v0.8.3, no volume). The `open_webui` role
+  ignores them; keep, migrate (backup/restore into `open-webui`) or delete is the
+  owner's call. Source: `docs/missions/2026-11-05-open-webui/`.
 
 ### A fresh `uv sync` picks the newest Python (3.15)
 - No `.python-version`; `requires-python >=3.10` lets uv choose 3.15.1, for which

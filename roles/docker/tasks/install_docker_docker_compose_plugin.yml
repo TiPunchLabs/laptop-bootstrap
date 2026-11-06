@@ -6,6 +6,7 @@
       - ca-certificates
       - curl
       - software-properties-common
+      - python3-debian  # deb822_repository below; lets `--tags docker` run without a prior full run
     state: present
 
 - name: Remove conflicting Docker packages

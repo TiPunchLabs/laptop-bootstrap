@@ -1,0 +1,57 @@
+---
+- name: Validate Open WebUI settings
+  ansible.builtin.assert:
+    that:
+      - open_webui_version is match('^v\d+\.\d+\.\d+$')
+      - open_webui_bind_address | length > 0
+      - open_webui_host_port | int > 0
+      - open_webui_host_port | int < 65536
+    fail_msg: >-
+      open_webui_version must be a release tag such as v0.13.0 (not main, latest
+      or dev), and open_webui_bind_address / open_webui_host_port must be set.
+    quiet: true
+
+# community.docker talks to the Docker API through python3-requests.
+- name: Install the Python library used by community.docker
+  ansible.builtin.apt:
+    name: python3-requests
+    state: present
+
+- name: Create the Open WebUI data volume
+  community.docker.docker_volume:
+    name: "{{ open_webui_volume_name }}"
+    state: present
+
+# A version bump changes the image, so the container is recreated with the same
+# volume. pull: missing never refreshes a tag that is already present.
+# state: healthy starts the container, then waits for its health check, so a
+# broken start fails the run instead of reporting green.
+- name: Run the Open WebUI container and wait until it is healthy
+  community.docker.docker_container:
+    name: "{{ open_webui_container_name }}"
+    image: "{{ open_webui_image }}:{{ open_webui_version }}"
+    pull: missing
+    state: healthy
+    healthy_wait_timeout: "{{ open_webui_health_timeout }}"
+    restart_policy: unless-stopped
+    container_default_behavior: no_defaults
+    published_ports:
+      - "{{ open_webui_bind_address }}:{{ open_webui_host_port }}:8080"
+    mounts:
+      - type: volume
+        source: "{{ open_webui_volume_name }}"
+        target: /app/backend/data
+    etc_hosts:
+      host.docker.internal: host-gateway
+    env:
+      OLLAMA_BASE_URL: "{{ open_webui_ollama_base_url }}"
+      # start.sh generates the key on first start; keeping the file in the volume
+      # preserves sessions and encrypted settings across container recreation.
+      WEBUI_SECRET_KEY_FILE: /app/backend/data/.webui_secret_key
+    healthcheck:
+      test: ["CMD-SHELL", "curl --silent --fail http://localhost:8080/health | jq -ne 'input.status == true' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+      start_interval: 5s

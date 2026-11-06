@@ -1,0 +1,20 @@
+---
+galaxy_info:
+  author: xgueret
+  description: Run Open WebUI as a Docker container (pinned image, named volume, loopback port)
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - jammy
+        - noble
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+
+# Docker Engine is a hard prerequisite: `--tags open-webui` installs or checks it
+# first, the same way `vagrant` pulls in `libvirt`.
+dependencies:
+  - role: docker

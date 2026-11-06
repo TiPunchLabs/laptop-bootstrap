@@ -24,6 +24,7 @@ mise is **not** a universal package manager here. Anything that needs system int
 │   ├── apt_keyring/      # vendor signing keyrings, re-synced every run
 │   ├── cli_tools/        # mise install + config + managed ~/.bashrc block
 │   ├── cleanup_legacy/   # removes pre-mise installs (destructive, see below)
+│   ├── open_webui/       # Open WebUI as a Docker container (pinned image, named volume)
 │   └── devtools · docker · git · libvirt · obsidian · postman_cli · syncthing · vagrant
 ├── test/smoke/           # Vagrant + libvirt VM to replay the playbook safely
 ├── uninstall-opera.yml   # one-shot maintenance playbook
@@ -108,6 +109,7 @@ make play TAGS=<tag>         # second run of the same scope: expect changed=0
 | `cleanup-legacy` | `cleanup_legacy` only |
 | `update` | `apt update` + `apt upgrade` |
 | `docker`, `git`, `devtools`, `postman-cli`, `obsidian`, `syncthing`, `libvirt`, `vagrant` | The role of the same name (`vagrant` pulls in `libvirt`) |
+| `open-webui` | `open_webui` (pulls in `docker`): Open WebUI container on <http://127.0.0.1:3030>, see [its README](roles/open_webui/README.md) |
 | `internal-dns`, `sudo`, `journald` | The matching systemd/sudo drop-in from `bootstrap` |
 
 Base packages, vendor apps (`software.yml`), hostname and `/etc/hosts` have no tag: they only run in a full, untagged run.
@@ -171,6 +173,10 @@ pnpm bin -g                  # ~/.local/share/pnpm/bin, listed in PATH after /us
 ### Manual `.bashrc` cleanup (one-time)
 
 `cli_tools` owns a marker-bounded block (`ANSIBLE MANAGED: cli_tools shell hooks`). Only laptops provisioned before that block existed may still have stray copies of `eval "$(~/.local/bin/mise activate bash)"`, `eval "$(starship init bash)"` or `eval "$(direnv hook bash)"` outside it. The role does not remove those lines (see [the design note](docs/superpowers/specs/2026-04-21-cli-tools-shell-hooks-design.md)); delete them by hand, then run `make play TAGS=mise`.
+
+### Open WebUI
+
+`make play-open-webui` runs Open WebUI `v0.13.0` in Docker, published on `127.0.0.1:3030` only, with its data in the `open-webui` volume and the host's Ollama as backend. The first account created becomes the administrator. Updates are manual (bump `open_webui_version`), and **an older tag does not undo database migrations**: back up the volume before every update. Details, backup/restore and the future `openwebui.internal` integration: [`roles/open_webui/README.md`](roles/open_webui/README.md).
 
 ### Other one-time notes
 
