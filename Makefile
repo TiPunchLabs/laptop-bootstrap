@@ -35,7 +35,7 @@ help: ## Show this help
 play: ## Run the full playbook (use TAGS=... to scope)
 	$(VENV_RUN)/ansible-playbook -i $(INVENTORY) $(PLAYBOOK) $(ANSIBLE_FLAGS)
 
-.PHONY: play-cli-tools play-docker play-git play-vagrant play-devtools play-cleanup-legacy play-obsidian play-syncthing play-postman-cli
+.PHONY: play-cli-tools play-docker play-git play-vagrant play-devtools play-cleanup-legacy play-obsidian play-syncthing play-postman-cli play-open-webui
 play-cli-tools:      TAGS := cli-tools
 play-docker:         TAGS := docker
 play-git:            TAGS := git
@@ -45,6 +45,7 @@ play-cleanup-legacy: TAGS := cleanup-legacy
 play-obsidian:       TAGS := obsidian
 play-syncthing:      TAGS := syncthing
 play-postman-cli:    TAGS := postman-cli
+play-open-webui:     TAGS := open-webui
 play-cli-tools:      play ## Run only the cli_tools role
 play-docker:         play ## Run only the docker role
 play-git:            play ## Run only the git role
@@ -54,6 +55,7 @@ play-cleanup-legacy: play ## Run only the cleanup_legacy role
 play-obsidian:       play ## Run only the obsidian role
 play-syncthing:      play ## Run only the syncthing role
 play-postman-cli:    play ## Run only the postman_cli role
+play-open-webui:     play ## Run only the open_webui role (+ its docker dependency)
 
 # ——— One-shot maintenance playbooks ———
 

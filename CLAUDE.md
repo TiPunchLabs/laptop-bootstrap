@@ -68,7 +68,8 @@ playbook.yml ── hosts: local, become: true
         ├─ loop bootstrap_software_list → install_software.yml      (PATTERN A, untagged)
         │         keyring via role apt_keyring, deb822 source, one batched apt install
         └─ include_role, one tag each:                               (PATTERN B)
-             libvirt · vagrant · git · docker · devtools · postman_cli (postman-cli) ·
+             libvirt · vagrant · git · docker · open_webui (open-webui) · devtools ·
+             postman_cli (postman-cli) ·
              obsidian · syncthing · cleanup_legacy (cleanup-legacy, cli-tools) ·
              cli_tools (cli-tools, mise)
 ```
@@ -91,6 +92,9 @@ keyring under `/usr/share/keyrings/` is never deleted (README → APT keyrings).
 - `devtools`: Postman **desktop** app → `/opt/Postman`, link `postman-app`.
 - `syncthing`: distro package + user service; `generate` once (`no_log`), then only
   GUI address/user via `community.general.xml`. Never touches device identity or pairings.
+- `open_webui`: pinned image `ghcr.io/open-webui/open-webui:vX.Y.Z` via
+  `community.docker` (volume + container, `127.0.0.1:3030`), depends on `docker`.
+  Never touches the `brain-rag_open-webui` volume. Ops: `roles/open_webui/README.md`.
 - `libvirt`, `vagrant` (depends on libvirt), `git`, `docker`, `cli_tools` (mise +
   marker-bounded `~/.bashrc` block), `cleanup_legacy` (destructive, see README).
 

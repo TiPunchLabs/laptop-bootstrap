@@ -1,0 +1,22 @@
+---
+# Official image, pinned to a stable release tag. Never main, latest or dev
+# (the role asserts it). Bump deliberately; see the role README → Updating.
+open_webui_image: ghcr.io/open-webui/open-webui
+open_webui_version: "v0.13.0"
+
+open_webui_container_name: open-webui
+open_webui_volume_name: open-webui
+
+# Loopback only: the UI is reachable from this laptop, not from the LAN.
+# 3000 (upstream's example) is avoided: the brain-rag compose project publishes it.
+open_webui_bind_address: "127.0.0.1"
+open_webui_host_port: 3030
+
+# Ollama runs on the host (systemd). host.docker.internal is mapped to the
+# Docker bridge gateway, so Ollama must listen on that address (OLLAMA_HOST=0.0.0.0).
+# Seeds the first start only: Open WebUI then stores the URL in its database, and
+# later changes go through Admin Settings > Connections (see the role README).
+open_webui_ollama_base_url: "http://host.docker.internal:11434"
+
+# Seconds the run waits for the container to report healthy (docker_container state: healthy).
+open_webui_health_timeout: 300

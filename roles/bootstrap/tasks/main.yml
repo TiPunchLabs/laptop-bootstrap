@@ -134,6 +134,15 @@
   tags:
     - docker
 
+- name: Run Open WebUI (Docker container)
+  ansible.builtin.include_role:
+    name: open_webui
+    apply:
+      tags:
+        - open-webui
+  tags:
+    - open-webui
+
 - name: Install devtools
   ansible.builtin.include_role:
     name: devtools
