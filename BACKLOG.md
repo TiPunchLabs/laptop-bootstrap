@@ -4,7 +4,7 @@ Open work, cleanup and deferred improvements. GitHub issues are disabled on this
 repo, so this file is the single place to track them. Remove an entry once it is
 done (git history keeps the trace).
 
-Last review: 2026-11-06.
+Last review: 2026-11-07.
 
 ## In progress
 
