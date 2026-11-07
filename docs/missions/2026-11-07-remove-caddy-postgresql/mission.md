@@ -220,12 +220,12 @@ CAs, every other container/volume/network/image. No prune.
 | AC7 | Caddy runtime removed; PostgreSQL quarantined (stopped, restart=no); nothing recreates either | docker inventory, restart policy, file checks | VERIFIED (`execution.log`: postgresql exited, restart=no, volume+dir kept; both Caddy dirs in trash; 0 listeners on 5432; no unit/cron/hosts/caddy image) |
 | AC8 | Retained apps healthy; unrelated resources equal to baseline | inventory diff, open-webui health | VERIFIED (`inventory-diff.txt`: only the default `bridge` network ID differs, recreated by the 15:52 boot; open-webui a874108bcb69 healthy, /health 200; byenvini-dev-pg ready; mailpit, localstack healthy) |
 | AC9 | Codex review before runtime cleanup | `review-2.md` VERDICT | VERIFIED (review 1 CHANGES_REQUESTED; review 2 PASS_WITH_RESERVATIONS, all 4 steps approved before execution) |
-| AC10 | Separate PRs, CI state reported, no merge | gh | NOT_VERIFIED |
-| AC-SAFE | Owner work preserved; no secret printed or committed; hooks not bypassed; homelab untouched | snapshots, gitleaks | NOT_VERIFIED |
+| AC10 | Separate PRs, CI state reported, no merge | gh | VERIFIED (ansible-docker-apps#10 65c5de2, laptop-bootstrap#65 1198b43; CI lint+terraform pass on both; not merged) |
+| AC-SAFE | Owner work preserved; no secret printed or committed; hooks not bypassed; homelab untouched | snapshots, gitleaks | VERIFIED (lb main snapshot unchanged; ada tracked diff byte-identical to backup patch, only untracked `caddy/` trashed per plan; gitleaks pass; no hook skipped; homelab untouched). Deviations in report |
 
 ## State
 
-- Phase: report
+- Phase: done
 - Branches / worktrees: laptop-bootstrap `chore/remove-caddy-postgresql` at
   `../laptop-bootstrap-worktrees/remove-caddy-postgresql` (base 6c05b78);
   ansible-docker-apps `chore/remove-caddy` at
@@ -245,3 +245,4 @@ CAs, every other container/volume/network/image. No prune.
 - 2026-11-07 review-2: PASS_WITH_RESERVATIONS (F2.1, F2.2 minor), steps 1–4 approved.
 - 2026-11-07 execute: 16:37:07 postgresql restart=no + stopped; both Caddy runtime dirs trashed; post checks green.
 - 2026-11-07 fix-2: F2.1 deferred-deletion criteria written; F2.2 table wording fixed.
+- 2026-11-07 report: PRs ansible-docker-apps#10, laptop-bootstrap#65 opened, CI green; reviewer pane closed.

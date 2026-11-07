@@ -138,7 +138,19 @@ vault diffs).
 
 ## Git state
 
-See the section appended after push (commit, PR, CI).
+- ansible-docker-apps: branch `chore/remove-caddy` (worktree
+  `../ansible-docker-apps-worktrees/remove-caddy`), commit 65c5de2, pushed.
+  PR https://github.com/TiPunchLabs/ansible-docker-apps/pull/10 — open,
+  mergeable; CI run 42411998916: `lint` pass, `terraform` pass on 65c5de2.
+- laptop-bootstrap: branch `chore/remove-caddy-postgresql` (worktree
+  `../laptop-bootstrap-worktrees/remove-caddy-postgresql`), commit 1198b43,
+  pushed. PR https://github.com/TiPunchLabs/laptop-bootstrap/pull/65 — open,
+  mergeable; CI run 42412085165: `lint` pass, `terraform` pass on 1198b43. A
+  follow-up commit adds this section; its checks are in the PR.
+- CI proves lint/syntax only, not laptop state. Nothing merged, nothing deployed,
+  no branch deleted (`feature/postgresql` kept). Owner checkout of
+  ansible-docker-apps left on `feature/postgresql` with its local edits.
+- Herdr pane w1Q:pN (agent `lb-review`) closed at the end of the mission.
 
 ## Decisions required
 
