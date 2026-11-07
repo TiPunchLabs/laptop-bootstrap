@@ -97,7 +97,7 @@ Repository (laptop-bootstrap):
 | AC5 | No active startup mechanism can recreate Portainer on the laptop | container gone (restart policy gone with it); compose dir no longer at its path; no unit/cron; dormant ansible-docker-apps path documented | VERIFIED |
 | AC6 | Open WebUI healthy and unrelated Docker resources preserved | `docker inspect open-webui` health + same container ID/StartedAt; `curl 127.0.0.1:3030/health`; pre/post container list diff = only `portainer_agent` | VERIFIED |
 | AC7 | Codex reviewed repo changes and cleanup plan before laptop removals | `review-1.md` verdict | VERIFIED |
-| AC8 | Commit, push, PR opened, not merged; CI status reported | `gh pr view` | NOT_VERIFIED |
+| AC8 | Commit, push, PR opened, not merged; CI status reported | `gh pr view` | VERIFIED |
 | AC-SAFE | User's local work preserved (main tree and ansible-docker-apps snapshots unchanged); no secret read or written; hooks not bypassed | §6 snapshots; pre-commit run | VERIFIED |
 
 ## Plan
@@ -126,7 +126,7 @@ Repository (laptop-bootstrap):
 
 ## State
 
-- Phase: report
+- Phase: done
 - Branch / worktree: chore/remove-portainer / ../laptop-bootstrap-worktrees/remove-portainer
 - Base commit: fbaa44e
 - Evidence dir: ~/.local/share/laptop-bootstrap-agent/2026-11-07-remove-portainer/
@@ -134,7 +134,7 @@ Repository (laptop-bootstrap):
 - ansible-docker-apps baseline: `$E/ansible-docker-apps-snap-baseline.txt` (4339705b…)
 - Reviewer: herdr agent lb-review (codex), pane w1Q:pH
 - Review cycle: 1 of 3 (PASS_WITH_RESERVATIONS)
-- Next step: commit, push, PR (reviewer pane closed)
+- Next step: owner merges PR #64; optional D1 in ansible-docker-apps
 
 ## Log
 
@@ -143,3 +143,4 @@ Repository (laptop-bootstrap):
 - 2026-11-07 review-1: Codex PASS_WITH_RESERVATIONS, no findings.
 - 2026-11-07 laptop: backup `~/Backups/portainer-2026-11-07/portainer-07-local.tar.gz` (19/19 entries); `portainer_agent` removed; image 23327631ee89 removed; `07-local/portainer` trashed.
 - 2026-11-07 verify: AC2–AC6 and AC-SAFE verified (see report.md).
+- 2026-11-07 git: 3efbb25 pushed, PR #64 opened, CI lint+terraform pass; reviewer pane w1Q:pH closed.

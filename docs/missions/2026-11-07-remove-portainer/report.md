@@ -82,7 +82,7 @@ Not removed, on purpose:
 | AC5 | VERIFIED (laptop) | container and restart policy gone; `07-local/portainer` absent; `ss -ltn` on 9000/9001/9443 → 0; systemd system/user and crontab grep → 0. The residual repository path is below |
 | AC6 | VERIFIED | `open-webui` same ID and `StartedAt 2026-11-06T12:16:03Z`, `healthy`, restarts=0, `GET 127.0.0.1:3030/health` → 200. `byenvini-dev-pg`, `mailpit`, `postgresql`, `localstack` still `Up (healthy)`. Volumes and networks unchanged |
 | AC7 | VERIFIED | `review-1.md`: `VERDICT: PASS_WITH_RESERVATIONS`, no findings. Written before any laptop removal (review 14:23, backup and removals after it) |
-| AC8 | see Git state | commit, push and PR follow this report |
+| AC8 | VERIFIED | PR #64 open, not merged; CI `lint` and `terraform` pass on 3efbb25 (see Git state) |
 | AC-SAFE | VERIFIED | Main-tree snapshot `14021b4b…` and `ansible-docker-apps` snapshot `4339705b…` are unchanged. No `pass`/vault access; dummy vault password file used. Hooks were not bypassed |
 
 ## Checks executed
@@ -120,6 +120,17 @@ Not removed, on purpose:
   `roles/caddy/templates/Caddyfile.j2`) still has a `portainer.local →
   127.0.0.1:9000` block. Caddy is not running and no container uses it. This
   was left alone because the file belongs to `ansible-docker-apps`.
+
+## Git state
+
+- Branch `chore/remove-portainer`, worktree
+  `../laptop-bootstrap-worktrees/remove-portainer`, base fbaa44e.
+- Commit 3efbb25 `docs(missions): record Portainer removal from the laptop`,
+  pushed. PR: https://github.com/TiPunchLabs/laptop-bootstrap/pull/64 (open,
+  mergeable, not merged). CI run 42401232551: `lint` pass, `terraform` pass.
+- A follow-up commit adds this section and the PR link. Its SHA and CI result
+  are reported in the PR checks. CI proves lint and syntax only, not laptop state.
+- Merge, branch and worktree deletion: owner.
 
 ## Decisions required
 
