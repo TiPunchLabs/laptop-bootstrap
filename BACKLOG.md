@@ -74,6 +74,19 @@ Optional; none of these blocks anything.
 
 ## Watch
 
+### Generic PostgreSQL quarantined (`ansible-docker-apps`, not this repo)
+- Container `postgresql` (5432) stopped with `restart=no` on 2026-11-07; volume
+  `postgresql_postgresql-data` and `~/Workspace/07-local/postgresql/` kept.
+  Unidentified clients used it in September 2026. Final deletion is an owner
+  decision after the observation period (suggested 2026-12-07); criteria,
+  rollback and exact commands: `docs/missions/2026-11-07-remove-caddy-postgresql/mission.md`
+  → Runtime plan. Backups: `~/Backups/caddy-postgresql-2026-11-07/`.
+
+### `ansible-docker-apps` still ships the Portainer role
+- Decision D1 of `docs/missions/2026-11-07-remove-portainer/report.md`, still
+  open: `roles/portainer`, `deploy_portainer: true` on its main. Its branch
+  `feature/postgresql` (role never merged) stays until the owner deletes it.
+
 ### Ollama listens on every interface
 - `ollama.service` drop-in sets `OLLAMA_HOST=0.0.0.0`, so the unauthenticated
   Ollama API is reachable from the LAN. Open WebUI's container needs it on the
