@@ -109,7 +109,7 @@ make play TAGS=<tag>         # second run of the same scope: expect changed=0
 | `cleanup-legacy` | `cleanup_legacy` only |
 | `update` | `apt update` + `apt upgrade` |
 | `docker`, `git`, `devtools`, `postman-cli`, `obsidian`, `syncthing`, `libvirt`, `vagrant` | The role of the same name (`vagrant` pulls in `libvirt`) |
-| `open-webui` | `open_webui` (pulls in `docker`): Open WebUI container on <http://127.0.0.1:3030>, see [its README](roles/open_webui/README.md) |
+| `open-webui` | `open_webui` (pulls in `docker`): Open WebUI container on <http://127.0.0.1:3030> (+ LAN filter when not on loopback), see [its README](roles/open_webui/README.md) |
 | `internal-dns`, `sudo`, `journald` | The matching systemd/sudo drop-in from `bootstrap` |
 
 Base packages, vendor apps (`software.yml`), hostname and `/etc/hosts` have no tag: they only run in a full, untagged run.
@@ -176,7 +176,7 @@ pnpm bin -g                  # ~/.local/share/pnpm/bin, listed in PATH after /us
 
 ### Open WebUI
 
-`make play-open-webui` runs Open WebUI `v0.13.0` in Docker, published on `127.0.0.1:3030` only, with its data in the `open-webui` volume and the host's Ollama as backend. The first account created becomes the administrator. Updates are manual (bump `open_webui_version`), and **an older tag does not undo database migrations**: back up the volume before every update. Details, backup/restore and the future `openwebui.internal` integration: [`roles/open_webui/README.md`](roles/open_webui/README.md).
+`make play-open-webui` runs Open WebUI `v0.13.0` in Docker, published on `127.0.0.1:3030` by default (this laptop: `0.0.0.0:3030`, filtered to the homelab Caddy), with its data in the `open-webui` volume and the host's Ollama as backend. The first account created becomes the administrator. Updates are manual (bump `open_webui_version`), and **an older tag does not undo database migrations**: back up the volume before every update. Details, backup/restore and the `openwebui.internal` reverse-proxy setup: [`roles/open_webui/README.md`](roles/open_webui/README.md).
 
 ### Other one-time notes
 

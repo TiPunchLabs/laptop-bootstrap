@@ -1,0 +1,10 @@
+---
+# Internal names of the LAN filter; not meant to be overridden.
+open_webui_lan_exposed: "{{ open_webui_bind_address is not match('^127\\.') }}"
+open_webui_firewall_chain: OPEN-WEBUI-INGRESS
+open_webui_firewall_unit: open-webui-firewall.service
+open_webui_firewall_script: /usr/local/sbin/open-webui-firewall
+# Jump from DOCKER-USER: only packets Docker port-forwarded (DNAT), client to
+# container direction. Replies (REPLY direction) never enter the chain. Constant,
+# so a port or source change only rewrites the chain.
+open_webui_firewall_jump: -m conntrack --ctstate DNAT --ctdir ORIGINAL -j {{ open_webui_firewall_chain }}

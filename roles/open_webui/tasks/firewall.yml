@@ -1,0 +1,85 @@
+---
+# Docker publishes ports with its own NAT rules, which bypass ufw and INPUT. The
+# filter sits in DOCKER-USER, which only exists with the iptables backend.
+- name: Read the Docker firewall backend
+  ansible.builtin.command: docker info --format "{% raw %}{{ .FirewallBackend.Driver }}{% endraw %}"
+  register: open_webui_docker_firewall
+  changed_when: false
+  check_mode: false
+
+- name: Require the iptables firewall backend
+  ansible.builtin.assert:
+    that: open_webui_docker_firewall.stdout == 'iptables'
+    fail_msg: >-
+      Docker firewall backend is '{{ open_webui_docker_firewall.stdout }}'. The
+      Open WebUI LAN filter uses the DOCKER-USER iptables chain; keep
+      open_webui_bind_address on 127.0.0.1 with another backend.
+    quiet: true
+
+# The DROP rule matches the host port. When the port changes, the running
+# container still publishes the old one: stop it before the rules change, so the
+# old port is never published unfiltered (stopped stays stopped if the run fails).
+- name: Read the running Open WebUI container
+  community.docker.docker_container_info:
+    name: "{{ open_webui_container_name }}"
+  register: open_webui_current
+
+# docker stop, not docker_container state=stopped: with only a name, the module
+# compares against its defaults and recreates the container (seen on the VM).
+- name: Stop the container before its host port changes
+  ansible.builtin.command: "docker stop {{ open_webui_container_name }}"
+  when:
+    - open_webui_current.exists
+    - (open_webui_current.container.HostConfig.PortBindings['8080/tcp'] | default([], true)
+       | map(attribute='HostPort') | reject('equalto', open_webui_host_port | string) | list | length) > 0
+
+- name: Install the LAN filter script
+  ansible.builtin.template:
+    src: open-webui-firewall.sh.j2
+    dest: "{{ open_webui_firewall_script }}"
+    owner: root
+    group: root
+    mode: "0755"
+  register: open_webui_firewall_script_file
+
+- name: Install the LAN filter unit
+  ansible.builtin.template:
+    src: open-webui-firewall.service.j2
+    dest: "/etc/systemd/system/{{ open_webui_firewall_unit }}"
+    owner: root
+    group: root
+    mode: "0644"
+  register: open_webui_firewall_unit_file
+
+# `enabled: true` does not refresh the links of an already enabled unit whose
+# [Install] section changed; `systemctl reenable` does (the systemd module has no
+# reenable) and starts or stops nothing. Not a handler: the links must be right
+# before the container is published.
+- name: Refresh the LAN filter unit links  # noqa: no-handler command-instead-of-module
+  ansible.builtin.command: "systemctl reenable {{ open_webui_firewall_unit }}"
+  when: open_webui_firewall_unit_file is changed
+
+# Never `restarted`: Docker requires the unit, so restarting it restarts Docker.
+- name: Enable the LAN filter unit
+  ansible.builtin.systemd_service:
+    name: "{{ open_webui_firewall_unit }}"
+    enabled: true
+    daemon_reload: "{{ open_webui_firewall_unit_file is changed }}"
+    state: started
+
+- name: Check that the LAN filter rules are in place
+  ansible.builtin.shell: >-
+    iptables -w -C DOCKER-USER {{ open_webui_firewall_jump }} &&
+    iptables -w -C {{ open_webui_firewall_chain }} -p tcp -m conntrack
+    --ctorigdstport {{ open_webui_host_port }} --ctreplsrcport 8080 -j DROP
+  register: open_webui_firewall_probe
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# The script is idempotent and replaces the chain in one transaction.
+- name: Apply the LAN filter rules
+  ansible.builtin.command: "{{ open_webui_firewall_script }}"
+  when: >-
+    open_webui_firewall_script_file is changed
+    or open_webui_firewall_probe.rc != 0

@@ -2,10 +2,13 @@
 
 Run [Open WebUI](https://github.com/open-webui/open-webui) on the laptop as a
 Docker container: official image pinned to a release tag, data in a named volume,
-UI published on loopback only, talking to the Ollama service that runs on the host.
+UI published on loopback by default, talking to the Ollama service that runs on the
+host. Optionally published to the LAN for a reverse proxy, behind a source filter
+(see [LAN access through a reverse proxy](#lan-access-through-a-reverse-proxy)).
 
 Managed with `community.docker` (`docker_volume`, `docker_container`), shipped by
-the `ansible` package in the project venv. No compose file, no systemd unit.
+the `ansible` package in the project venv. No compose file. The only systemd unit is
+the LAN filter, installed only when the port leaves loopback.
 
 ## Prerequisites
 
@@ -39,13 +42,17 @@ right after the first install.
 | `open_webui_version` | `v0.13.0` | Release tag. Must match `vX.Y.Z`: `main`, `latest`, `dev` are rejected |
 | `open_webui_container_name` | `open-webui` | Container name |
 | `open_webui_volume_name` | `open-webui` | Named volume mounted on `/app/backend/data` |
-| `open_webui_bind_address` | `127.0.0.1` | Host address the port is published on |
+| `open_webui_bind_address` | `127.0.0.1` | Host IPv4 address the port is published on. Not `127.*` → LAN filter installed |
 | `open_webui_host_port` | `3030` | Host port (container port is 8080) |
+| `open_webui_allowed_sources` | `[]` | IPv4 addresses/CIDRs allowed to reach the port when it is not on loopback (required then) |
+| `open_webui_url` | `""` | `WEBUI_URL` when not empty, read on the **first start only** (see [Public URL](#public-url-webui_url)) |
 | `open_webui_ollama_base_url` | `http://host.docker.internal:11434` | `OLLAMA_BASE_URL`, read on the **first start only** (see [Ollama](#ollama)) |
 | `open_webui_health_timeout` | `300` | Seconds the run waits for `healthy` |
 
 Override in `group_vars/all/vars.yml` (or `-e` for a one-off; not for
-`open_webui_version`, see [Updating](#updating)). None of them is a secret.
+`open_webui_version`, see [Updating](#updating)). None of them is a secret. This
+laptop's `group_vars/all/vars.yml` sets the homelab values (`0.0.0.0`,
+`192.168.10.70`, `https://openwebui.internal`).
 
 Fixed by the role: restart policy `unless-stopped`; health check
 `curl /health | jq 'status == true'` (the image's own test) every 30 s with a 120 s
@@ -54,9 +61,9 @@ start period; `host.docker.internal` mapped to `host-gateway`;
 
 ### Network exposure
 
-`127.0.0.1:3030` makes the UI reachable from this laptop only. Docker publishes
-ports with its own iptables rules, which bypass `ufw`: binding to loopback is what
-keeps it off the LAN. Port 3000 (upstream's example) is avoided because the
+With the default `127.0.0.1:3030` the UI is reachable from this laptop only. Docker
+publishes ports with its own iptables rules, which bypass `ufw`: binding to loopback
+is what keeps it off the LAN, unless the LAN filter below is used. Port 3000 (upstream's example) is avoided because the
 `~/Workspace/brain-rag` compose project publishes `0.0.0.0:3000`.
 
 ### Ollama
@@ -198,17 +205,128 @@ To move that data under this role instead, back it up and restore it into the
 `open-webui` volume while the managed container is stopped; this is an owner
 decision, not something the role does.
 
-## Future homelab integration (`openwebui.internal`)
+## LAN access through a reverse proxy
 
-Not implemented here; it belongs to the homelab (Pi-hole + Caddy). What it will need:
+Used on this laptop for `https://openwebui.internal`: the homelab Caddy
+(`192.168.10.70`) proxies to `http://192.168.10.217:3030`. Enabled by any
+non-loopback `open_webui_bind_address`:
 
-- Caddy on another host cannot reach `127.0.0.1:3030`. Either set
-  `open_webui_bind_address` to the laptop's LAN address (and restrict who can reach
-  it), or run the reverse proxy on the laptop and keep loopback.
-- Reverse proxy: `reverse_proxy <laptop>:3030` with WebSocket support (Caddy
-  forwards it by default); Open WebUI streams over WebSockets.
-- Set `WEBUI_URL=https://openwebui.internal` (this role would need a variable for
-  it; like `OLLAMA_BASE_URL` it is a persistent setting, so on an existing install
-  set it in Admin Settings → General), and check CORS (`CORS_ALLOW_ORIGIN`).
-- DNS: a Pi-hole record `openwebui.internal` → the proxy host; TLS from the
-  homelab's internal CA.
+```yaml
+# group_vars/all/vars.yml
+open_webui_bind_address: "0.0.0.0"          # IPv4 only, every interface
+open_webui_allowed_sources: ["192.168.10.70"]
+open_webui_url: "https://openwebui.internal"
+```
+
+### Why `0.0.0.0` and not the Wi-Fi address
+
+Binding to `192.168.10.217` would make the container depend on the DHCP lease:
+at boot Docker starts the container before Wi-Fi is up and the bind fails. `0.0.0.0`
+has no such dependency, publishes **IPv4 only** (an explicit IPv4 address never
+creates the `[::]` binding Docker adds for an empty host IP), and the filter does
+the restriction. The role rejects IPv6 or empty bind addresses.
+
+### How the filter works
+
+Packet path (Docker 29, iptables backend on nf_tables, checked on this laptop):
+
+```
+LAN client ──► nat PREROUTING ─► DOCKER: DNAT :3030 → <container>:8080
+           ──► filter FORWARD ─► DOCKER-USER ─► OPEN-WEBUI-INGRESS ─► DOCKER-FORWARD … ACCEPT
+laptop itself (127.0.0.1 or its own LAN IP) ─► OUTPUT / docker-proxy: never FORWARD, never filtered
+```
+
+`ufw` and the INPUT chain never see this traffic, so the filter lives in
+`DOCKER-USER`, the chain Docker reserves for user rules and never flushes:
+
+```
+-A DOCKER-USER -m conntrack --ctstate DNAT --ctdir ORIGINAL -j OPEN-WEBUI-INGRESS
+-A OPEN-WEBUI-INGRESS -s 192.168.10.70/32 -j RETURN          # one per allowed source
+-A OPEN-WEBUI-INGRESS -p tcp -m conntrack --ctorigdstport 3030 --ctreplsrcport 8080 -j DROP
+```
+
+- Only port-forwarded packets in the client → container direction enter the chain.
+  Replies (`REPLY` direction) never do, so an allowed connection is not cut.
+- The `DROP` matches the mapping itself: original destination port 3030 translated
+  to container port 8080. Other published ports and other Docker traffic return
+  untouched. Allowed sources `RETURN` to Docker's own rules, which accept them.
+- Other containers reaching `<laptop IP>:3030` through a Docker network are dropped
+  too (their source is not allowed); the laptop itself is not affected.
+
+`/usr/local/sbin/open-webui-firewall` writes these rules; the chain is replaced in
+one `iptables-restore --noflush` transaction, so a change of sources never leaves
+it empty. `open-webui-firewall.service` (oneshot) runs it, `Before=docker.service`
+and `RequiredBy=docker.service`: **if the filter fails, Docker does not start**, so
+the port is never published unfiltered (fail closed, at the cost of every container
+on the laptop until it is fixed).
+
+| Event | What happens |
+|---|---|
+| First run / change of sources | The role writes script + unit, runs the script **before** recreating the container |
+| Change of `open_webui_host_port` | The role `docker stop`s the container first (the old port leaves with it), then changes the rules, then recreates it. A failure in between leaves it stopped, and `unless-stopped` keeps it stopped |
+| Rerun, nothing changed | `iptables -C` probes find the hook and the `DROP`: `changed=0` |
+| Hook or `DROP` removed by hand | A probe fails, the role reruns the script (it does not check the allowed-source lines) |
+| Boot | The unit runs before Docker publishes anything. No network dependency, so a late Wi-Fi lease is irrelevant |
+| `systemctl restart docker` | Docker keeps `DOCKER-USER`; `PartOf=docker.service` also reruns the unit first |
+| Back to loopback | The role recreates the container on `127.0.0.1` first, then disables (Docker no longer requires it), stops and removes the unit, the script, the hook and the chain. Docker is not restarted; other `DOCKER-USER` rules stay |
+
+`Requires=` propagates stop and restart: `systemctl stop|restart
+open-webui-firewall` **stops or restarts Docker** and all its containers. To
+reapply the rules, run `sudo /usr/local/sbin/open-webui-firewall` (or the role)
+instead. If Docker refuses to start with `Dependency failed for docker.service`:
+
+```bash
+systemctl status open-webui-firewall.service   # why the script failed
+sudo /usr/local/sbin/open-webui-firewall        # fix, rerun until it exits 0
+sudo systemctl start docker
+```
+
+Limits: the filter trusts the source address (anyone on the LAN who can spoof
+`192.168.10.70` passes it, then still meets Open WebUI's login). It identifies the
+mapping by ports (original 3030, translated 8080), not by container. It requires
+Docker's `iptables` firewall backend; the role fails with any other.
+
+### Public URL (`WEBUI_URL`)
+
+`WEBUI_URL` is used for links in notifications, OAuth redirects and the search
+descriptor. Since v0.13.0 every setting is a row of the `config` table, seeded from
+the environment at the **first** start: on an existing install `webui.url` is
+already stored (empty) and `open_webui_url` changes nothing. Set it once in
+**Admin Settings → General → WebUI URL** (`https://openwebui.internal`). The role
+does not set `ENABLE_PERSISTENT_CONFIG=False` (see [Ollama](#ollama)).
+
+CORS is left at the upstream default (`CORS_ALLOW_ORIGIN=*`, which the WebSocket
+server also accepts): through Caddy the browser talks to one origin,
+`https://openwebui.internal`. Restricting it would require listing every origin,
+`http://127.0.0.1:3030` included. Caddy forwards WebSockets by default.
+
+### Verify
+
+```bash
+docker ps --filter name=open-webui --format '{{.Ports}}'   # 0.0.0.0:3030->8080/tcp, no [::]
+ss -ltn | grep ':3030'                                       # 0.0.0.0:3030 only
+sudo iptables -S DOCKER-USER; sudo iptables -S OPEN-WEBUI-INGRESS
+systemctl is-enabled open-webui-firewall.service             # enabled
+curl -fsS http://127.0.0.1:3030/health                       # local access
+ssh caddy-70 curl -fsS http://192.168.10.217:3030/health     # allowed: {"status":true}
+ssh dns-71 curl -m 5 http://192.168.10.217:3030/health        # other host: timeout
+systemctl show docker -p Requires | grep -o open-webui-firewall.service
+make play-open-webui                                         # second run: changed=0
+```
+
+### Roll back to loopback only
+
+Remove the three lines from `group_vars/all/vars.yml` (or set
+`open_webui_bind_address: "127.0.0.1"`), then `make play-open-webui`: container on
+`127.0.0.1:3030`, unit, script and rules removed. Data, accounts and the secret
+key are in the volume and are not touched. Emergency, without Ansible:
+
+```bash
+docker stop open-webui                         # closes the port at once
+# then fix the variables and rerun make play-open-webui
+```
+
+The homelab side (Pi-hole record, Caddy site, internal TLS) lives in the homelab
+repository. If the laptop address or port changes, update the Caddy upstream
+there (`http://<laptop IPv4>:<open_webui_host_port>`). The address relies on the
+router's static DHCP lease for the Wi-Fi MAC.

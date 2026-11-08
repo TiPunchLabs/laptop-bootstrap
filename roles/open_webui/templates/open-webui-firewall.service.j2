@@ -1,0 +1,22 @@
+#
+# Ansible managed (role open_webui)
+#
+[Unit]
+Description=Open WebUI: filter LAN access to the Docker-published port
+# Runs before Docker publishes the port at boot. RequiredBy (below) makes Docker
+# fail to start if the filter fails: fail closed, nothing is published unfiltered.
+# PartOf reruns it when Docker restarts. No network dependency: the rules match
+# source addresses and conntrack state, not interface addresses, so a late Wi-Fi
+# DHCP lease does not matter.
+# Requires= propagates stop/restart from this unit to Docker: do not stop or
+# restart it by hand while Docker runs; rerun the script instead.
+Before=docker.service
+PartOf=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart={{ open_webui_firewall_script }}
+
+[Install]
+RequiredBy=docker.service

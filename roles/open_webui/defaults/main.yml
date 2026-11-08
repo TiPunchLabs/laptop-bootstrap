@@ -7,10 +7,21 @@ open_webui_version: "v0.13.0"
 open_webui_container_name: open-webui
 open_webui_volume_name: open-webui
 
-# Loopback only: the UI is reachable from this laptop, not from the LAN.
+# IPv4 only. Loopback (default): the UI is reachable from this laptop, not from
+# the LAN. Any other address (0.0.0.0 = every interface) publishes the port beyond
+# the laptop; the role then installs a DOCKER-USER filter first, which only lets
+# open_webui_allowed_sources in (see the role README, Network exposure).
 # 3000 (upstream's example) is avoided: the brain-rag compose project publishes it.
 open_webui_bind_address: "127.0.0.1"
 open_webui_host_port: 3030
+
+# IPv4 addresses or CIDRs allowed to reach the port when it is not on loopback,
+# e.g. a reverse proxy. Required in that case, ignored on loopback.
+open_webui_allowed_sources: []
+
+# Public URL of the UI (WEBUI_URL), "" = not set. Like OLLAMA_BASE_URL it seeds the
+# first start only; on an existing install set it in Admin Settings > General.
+open_webui_url: ""
 
 # Ollama runs on the host (systemd). host.docker.internal is mapped to the
 # Docker bridge gateway, so Ollama must listen on that address (OLLAMA_HOST=0.0.0.0).

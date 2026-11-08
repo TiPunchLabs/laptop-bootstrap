@@ -36,13 +36,6 @@ Nothing in progress.
 
 Optional; none of these blocks anything.
 
-### open-webui — homelab reverse proxy `openwebui.internal`
-- Belongs to the homelab (Pi-hole record, Caddy, internal TLS), not this repo.
-  On the laptop side it will need: a reachable bind (`open_webui_bind_address` =
-  LAN address, or a proxy on the laptop), a `WEBUI_URL` variable in `open_webui`,
-  and a CORS check. Details: `roles/open_webui/README.md` → Future homelab
-  integration. Source: `docs/missions/2026-11-05-open-webui/`.
-
 ### CI — least-privilege `GITHUB_TOKEN`
 - `ci.yml` has no `permissions:` block and the repository default workflow
   permission is `write`; `actions/checkout` keeps its default
@@ -73,6 +66,14 @@ Optional; none of these blocks anything.
 - Source: `docs/adr/0001-unified-cli-tool-management-with-mise.md:65`
 
 ## Watch
+
+### `openwebui.internal` end to end
+- Laptop side: `0.0.0.0:3030` behind a DOCKER-USER filter admitting only Caddy
+  (`192.168.10.70`). Pending: owner sets Admin Settings → General → WebUI URL to
+  `https://openwebui.internal` (the env var cannot override the stored empty value);
+  HomeLab deploys MR !102; then HTTPS, browser login and streamed chat through Caddy.
+  The upstream `192.168.10.217` relies on the router's static DHCP lease (not
+  verifiable from the laptop). Source: `docs/missions/2026-11-07-open-webui-homelab-proxy/`.
 
 ### Generic PostgreSQL quarantined (`ansible-docker-apps`, not this repo)
 - Container `postgresql` (5432) stopped with `restart=no` on 2026-11-07; volume

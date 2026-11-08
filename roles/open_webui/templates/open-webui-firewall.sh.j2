@@ -1,0 +1,28 @@
+#!/bin/sh
+#
+# Ansible managed (role open_webui)
+#
+# Lets only the allowed sources reach the Open WebUI port that Docker publishes on
+# {{ open_webui_bind_address }}:{{ open_webui_host_port }}. Run by {{ open_webui_firewall_unit }} before
+# docker.service starts and again whenever it restarts. Idempotent.
+set -eu
+
+# Docker keeps an existing DOCKER-USER chain: creating it here puts the filter in
+# place before Docker publishes the port at boot.
+iptables -w -n -L DOCKER-USER >/dev/null 2>&1 || iptables -w -N DOCKER-USER
+
+# A declared chain is flushed and refilled in the same transaction: no window
+# without the DROP rule. The DROP matches the port mapping itself (original
+# destination port {{ open_webui_host_port }}, DNATed to container port 8080).
+iptables-restore --noflush <<'RULES'
+*filter
+:{{ open_webui_firewall_chain }} - [0:0]
+{% for source in open_webui_allowed_sources %}
+-A {{ open_webui_firewall_chain }} -s {{ source }} -j RETURN
+{% endfor %}
+-A {{ open_webui_firewall_chain }} -p tcp -m conntrack --ctorigdstport {{ open_webui_host_port }} --ctreplsrcport 8080 -j DROP
+COMMIT
+RULES
+
+iptables -w -C DOCKER-USER {{ open_webui_firewall_jump }} 2>/dev/null \
+  || iptables -w -I DOCKER-USER 1 {{ open_webui_firewall_jump }}
