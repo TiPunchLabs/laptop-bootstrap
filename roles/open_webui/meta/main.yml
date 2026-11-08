@@ -1,7 +1,7 @@
 ---
 galaxy_info:
   author: xgueret
-  description: Run Open WebUI as a Docker container (pinned image, named volume, loopback port)
+  description: Run Open WebUI as a Docker container (pinned image, named volume, loopback or filtered LAN port)
   license: MIT
   min_ansible_version: "2.14"
   platforms:

@@ -12,3 +12,11 @@ git_user_name: "{{ vault_git_user_name | default('myname') }}"
 internal_dns_servers: "{{ vault_internal_dns_servers | default(['127.0.0.53']) }}"
 internal_dns_domains: "{{ vault_internal_dns_domains | default(['~invalid']) }}"
 syncthing_gui_password: "{{ vault_syncthing_gui_password | default('CHANGEME-SET-IN-VAULT') }}"
+
+# Open WebUI behind the homelab reverse proxy (https://openwebui.internal, Caddy
+# on 192.168.10.70). 0.0.0.0 publishes IPv4 only and does not depend on the Wi-Fi
+# DHCP address at boot; the role's DOCKER-USER filter admits only the Caddy host.
+# Back to loopback-only: drop these three lines. See roles/open_webui/README.md.
+open_webui_bind_address: "0.0.0.0"
+open_webui_allowed_sources: ["192.168.10.70"]
+open_webui_url: "https://openwebui.internal"

@@ -93,7 +93,9 @@ keyring under `/usr/share/keyrings/` is never deleted (README → APT keyrings).
 - `syncthing`: distro package + user service; `generate` once (`no_log`), then only
   GUI address/user via `community.general.xml`. Never touches device identity or pairings.
 - `open_webui`: pinned image `ghcr.io/open-webui/open-webui:vX.Y.Z` via
-  `community.docker` (volume + container, `127.0.0.1:3030`), depends on `docker`.
+  `community.docker` (volume + container, `127.0.0.1:3030` by default), depends on `docker`.
+  A non-loopback bind installs a `DOCKER-USER` filter (unit `open-webui-firewall`);
+  this laptop publishes `0.0.0.0:3030` for the homelab Caddy only.
   Never touches the `brain-rag_open-webui` volume. Ops: `roles/open_webui/README.md`.
 - `libvirt`, `vagrant` (depends on libvirt), `git`, `docker`, `cli_tools` (mise +
   marker-bounded `~/.bashrc` block), `cleanup_legacy` (destructive, see README).

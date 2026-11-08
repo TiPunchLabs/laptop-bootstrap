@@ -1,0 +1,51 @@
+---
+# Loopback mode: remove what firewall.yml installed. Leaves every other
+# DOCKER-USER rule alone.
+- name: Look for the LAN filter unit
+  ansible.builtin.stat:
+    path: "/etc/systemd/system/{{ open_webui_firewall_unit }}"
+  register: open_webui_firewall_unit_stat
+
+# Disable first: it removes Docker's Requires= link (systemctl reloads itself),
+# so stopping the unit afterwards does not stop Docker.
+- name: Disable the LAN filter unit
+  ansible.builtin.systemd_service:
+    name: "{{ open_webui_firewall_unit }}"
+    enabled: false
+  when: open_webui_firewall_unit_stat.stat.exists
+
+- name: Stop the LAN filter unit
+  ansible.builtin.systemd_service:
+    name: "{{ open_webui_firewall_unit }}"
+    state: stopped
+  when: open_webui_firewall_unit_stat.stat.exists
+
+- name: Remove the LAN filter unit and script
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "/etc/systemd/system/{{ open_webui_firewall_unit }}"
+    - "{{ open_webui_firewall_script }}"
+
+- name: Reload systemd after removing the unit
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  when: open_webui_firewall_unit_stat.stat.exists
+
+- name: Remove the LAN filter rules
+  ansible.builtin.shell: |
+    set -eu
+    changed=0
+    while iptables -w -C DOCKER-USER {{ open_webui_firewall_jump }} 2>/dev/null; do
+      iptables -w -D DOCKER-USER {{ open_webui_firewall_jump }}
+      changed=1
+    done
+    if iptables -w -n -L {{ open_webui_firewall_chain }} >/dev/null 2>&1; then
+      iptables -w -F {{ open_webui_firewall_chain }}
+      iptables -w -X {{ open_webui_firewall_chain }}
+      changed=1
+    fi
+    echo "changed=$changed"
+  register: open_webui_firewall_cleanup
+  changed_when: "'changed=1' in open_webui_firewall_cleanup.stdout"

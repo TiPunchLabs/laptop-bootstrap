@@ -3,12 +3,19 @@
   ansible.builtin.assert:
     that:
       - open_webui_version is match('^v\d+\.\d+\.\d+$')
-      - open_webui_bind_address | length > 0
+      - open_webui_bind_address is match('^(\d{1,3}\.){3}\d{1,3}$')
       - open_webui_host_port | int > 0
       - open_webui_host_port | int < 65536
+      - open_webui_allowed_sources is sequence and open_webui_allowed_sources is not string
+      - open_webui_allowed_sources | reject('match', '^(\d{1,3}\.){3}\d{1,3}(/\d{1,2})?$') | list | length == 0
+      - not (open_webui_lan_exposed | bool) or open_webui_allowed_sources | length > 0
+      - open_webui_url == '' or open_webui_url is match('^https?://')
     fail_msg: >-
       open_webui_version must be a release tag such as v0.13.0 (not main, latest
-      or dev), and open_webui_bind_address / open_webui_host_port must be set.
+      or dev); open_webui_bind_address must be an IPv4 address and
+      open_webui_host_port a port; open_webui_allowed_sources must be a list of
+      IPv4 addresses or CIDRs, not empty when the bind address is not loopback;
+      open_webui_url must be "" or an http(s) URL.
     quiet: true
 
 # community.docker talks to the Docker API through python3-requests.
@@ -21,6 +28,11 @@
   community.docker.docker_volume:
     name: "{{ open_webui_volume_name }}"
     state: present
+
+# Before the container: the filter must be in place when the port leaves loopback.
+- name: Filter LAN access to the published port
+  ansible.builtin.import_tasks: firewall.yml
+  when: open_webui_lan_exposed | bool
 
 # A version bump changes the image, so the container is recreated with the same
 # volume. pull: missing never refreshes a tag that is already present.
@@ -43,11 +55,12 @@
         target: /app/backend/data
     etc_hosts:
       host.docker.internal: host-gateway
-    env:
-      OLLAMA_BASE_URL: "{{ open_webui_ollama_base_url }}"
-      # start.sh generates the key on first start; keeping the file in the volume
-      # preserves sessions and encrypted settings across container recreation.
-      WEBUI_SECRET_KEY_FILE: /app/backend/data/.webui_secret_key
+    # WEBUI_SECRET_KEY_FILE: start.sh generates the key on first start; keeping the
+    # file in the volume preserves sessions and encrypted settings across recreation.
+    env: >-
+      {{ {'OLLAMA_BASE_URL': open_webui_ollama_base_url,
+          'WEBUI_SECRET_KEY_FILE': '/app/backend/data/.webui_secret_key'}
+         | combine({'WEBUI_URL': open_webui_url} if open_webui_url | length > 0 else {}) }}
     healthcheck:
       test: ["CMD-SHELL", "curl --silent --fail http://localhost:8080/health | jq -ne 'input.status == true' || exit 1"]
       interval: 30s
@@ -55,3 +68,8 @@
       retries: 3
       start_period: 120s
       start_interval: 5s
+
+# After the container: the port is back on loopback before the filter goes away.
+- name: Remove the LAN filter when the port is on loopback
+  ansible.builtin.import_tasks: firewall_absent.yml
+  when: not open_webui_lan_exposed | bool
