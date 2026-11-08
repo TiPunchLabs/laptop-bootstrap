@@ -44,7 +44,7 @@ Out: homelab repo, Caddy/Pi-hole, Ollama, other containers, Open WebUI version.
 6. Commit, push, PR; final Codex review; report.
 
 ## State
-- Phase: report
+- Phase: done (PR #66 awaiting owner merge)
 - Branch / worktree: feat/open-webui-homelab-proxy / ../laptop-bootstrap-worktrees/open-webui-homelab-proxy
 - Base commit: 7311985 (origin/main; local main fbaa44e, behind 6, docs-only commits)
 - Evidence dir: ~/.local/share/laptop-bootstrap-agent/2026-11-07-open-webui-homelab-proxy/
