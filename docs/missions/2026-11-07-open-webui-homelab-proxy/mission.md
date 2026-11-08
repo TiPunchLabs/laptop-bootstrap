@@ -31,7 +31,7 @@ Out: homelab repo, Caddy/Pi-hole, Ollama, other containers, Open WebUI version.
 | AC7 | Laptop applied: local health OK, Caddy reaches :3030/health, other LAN host denied | owner `make play-open-webui`; curl from caddy-70 / dns-71 | VERIFIED |
 | AC8 | Data, auth, secret key, model connection, image version preserved | before/after: users, chats, alembic, key fingerprint, ollama urls, image | VERIFIED |
 | AC9 | Docs: config, restrictions, lifecycle, verification, rollback | role README | VERIFIED |
-| AC-SAFE | Main tree preserved; no secret read or written; hooks not bypassed | §6 snapshot, gitleaks | VERIFIED |
+| AC-SAFE | Main tree preserved; no secret read or written; hooks not bypassed | §6 snapshot (E/main-tree-snap-final.log), gitleaks (E/commit.log) | VERIFIED |
 
 ## Plan
 1. Inspect packet path, Docker backend, Open WebUI config handling (done).
@@ -44,13 +44,14 @@ Out: homelab repo, Caddy/Pi-hole, Ollama, other containers, Open WebUI version.
 6. Commit, push, PR; final Codex review; report.
 
 ## State
-- Phase: deliver (commit, PR, review-3)
+- Phase: report
 - Branch / worktree: feat/open-webui-homelab-proxy / ../laptop-bootstrap-worktrees/open-webui-homelab-proxy
 - Base commit: 7311985 (origin/main; local main fbaa44e, behind 6, docs-only commits)
 - Evidence dir: ~/.local/share/laptop-bootstrap-agent/2026-11-07-open-webui-homelab-proxy/
 - Main-tree snapshot: main-tree-snap-baseline.txt (14021b4b…)
 - Reviewer: herdr agent lb-review, pane w1Q:pP
-- Review cycle: 2 of 3
+- Review cycle: 3 of 3 (final)
+- PR: https://github.com/TiPunchLabs/laptop-bootstrap/pull/66 (not merged)
 
 ## Log
 - 2026-11-07 inspect: Docker 29.9.3, firewall backend iptables (iptables-nft 1.8.11); FORWARD → DOCKER-USER (empty) → DOCKER-FORWARD; nat DOCKER DNAT `-d 127.0.0.1 --dport 3030 → 172.17.0.3:8080`; raw PREROUTING drops 127.0.0.1:3030 from non-lo; ufw inactive; live-restore false.
@@ -71,3 +72,5 @@ Out: homelab repo, Caddy/Pi-hole, Ollama, other containers, Open WebUI version.
 - 2026-11-07 verify (laptop): authorized `systemctl restart docker` at 20:59:03 — firewall unit stopped with Docker, re-ran at 20:59:07 before dockerd; rules re-created; caddy-70 200, dns-71 dropped. byenvini-dev-pg, mailpit, localstack restarted and healthy after 15 s (E/laptop-docker-restart.log).
 - 2026-11-07 inspect (laptop, no reboot): `docker.service.requires/open-webui-firewall.service` link, docker After= includes the unit; `critical-chain` reflects the previous boot (unit not yet installed) — reboot NOT executed (E/laptop-boot-ordering.log).
 - 2026-11-07 verify (laptop): owner rerun of `make play-open-webui` at 21:41 → ok=29 changed=0; container id and StartedAt unchanged; caddy-70 still 200 (E/laptop-rerun-idem.log). Main-tree snapshot still 14021b4b….
+- 2026-11-07 deliver: commit 75c9ebc (hooks Passed, E/commit.log), pushed, PR #66 opened.
+- 2026-11-07 review-3 (final): Codex PASS_WITH_RESERVATIONS, no implementation regression; F3.1 [minor] evidence capture. Fix: owner playbook outputs saved from the session transcript (E/laptop-play-1-apply.log ok=32 changed=6; E/laptop-play-2-idem.log ok=29 changed=0); main-tree comparison saved (E/main-tree-snap-final.log: baseline = now = 14021b4b…, UNCHANGED). Pre-rerun container StartedAt was not captured as a separate record; the container dates from the Docker restart (StartedAt 00:59:08Z, "Up 15 seconds" at 20:59:24 in E/laptop-docker-restart.log) and is unchanged after the 21:41 rerun (E/laptop-rerun-idem.log).
