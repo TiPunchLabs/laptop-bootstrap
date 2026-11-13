@@ -60,7 +60,7 @@ The "what do I edit?" table — keep it open in a tab during the first month:
 | Intent                               | File                                          | Mechanism                              |
 | ------------------------------------ | --------------------------------------------- | -------------------------------------- |
 | Add / remove / re-version a CLI tool | `~/.config/mise/config.toml` (live)           | `mise use -g` / `mise unuse -g`, no Ansible run |
-| Change what a fresh laptop gets      | `roles/cli_tools/files/config.toml`           | promote the validated live config by hand |
+| Change what a fresh laptop gets      | `roles/cli_tools/files/config.toml`           | promote validated lines by hand         |
 | Add an apt repo + package            | `roles/bootstrap/vars/main/software.yml`      | append entry to `bootstrap_software_list` |
 | Change docker repo / arch            | `roles/docker/vars/main.yml`                  | `docker_deb822` / `docker_gpg`         |
 | Change HashiCorp/vagrant repo        | `roles/vagrant/vars/main.yml`                 | `vagrant_hashicorp_deb822`             |
@@ -74,11 +74,12 @@ The "what do I edit?" table — keep it open in a tab during the first month:
 ### Example — adding `jq`
 
 ```bash
-mise use -g jq@latest                                             # installs + writes the live config
+mise use -g --pin jq@latest                                       # installs + writes jq = "<exact version>"
 diff -u roles/cli_tools/files/config.toml ~/.config/mise/config.toml
-# keep it for future laptops? promote, then PR:
-cp ~/.config/mise/config.toml roles/cli_tools/files/config.toml
+# keep it for future laptops? copy only the jq line into the reference, then PR
 ```
+
+Without `--pin`, mise writes `jq = "latest"`. Promote line by line rather than copying the whole live config: it may hold older `"latest"` entries or local experiments.
 
 Ansible only seeds `~/.config/mise/config.toml` when it is absent, so later runs never undo or prune this. See [README → Managing CLI tools with mise](../README.md#managing-cli-tools-with-mise).
 
@@ -248,7 +249,7 @@ Common causes:
 
 ### A fresh laptop doesn't get a tool I use
 
-Ansible seeds new machines from `roles/cli_tools/files/config.toml`, not from your live config. Promote the live config (see the `jq` example above) and merge it.
+Ansible seeds new machines from `roles/cli_tools/files/config.toml`, not from your live config. Promote the tool's line from the live config (see the `jq` example above) and merge it.
 
 ### Standalone shell hooks in `~/.bashrc` after migration
 

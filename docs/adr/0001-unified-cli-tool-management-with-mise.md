@@ -139,6 +139,18 @@ exec bash
 
 ------
 
+## Amendment 2026-11-12 — exact pins in the seed
+
+**Context.** Twelve tools were seeded as `latest`, so two fresh laptops bootstrapped a week apart got different versions, none of them validated.
+
+**Decision.** The reference pins those twelve tools to exact versions (the ones validated on the owner's laptop, except kubectl, pinned to 1.34.13 to stay within the ±1 minor skew of the 1.34 clusters); Node.js and pnpm keep their major tracks (`26`, `12`). Seed-only behaviour is unchanged.
+
+- `mise upgrade` does not move an exact pin. A tool is updated with `mise use -g <tool>@<version>`, then promoted line by line to the reference.
+- The Node.js rationale above (security patches without a manual edit) still holds for the runtimes; for the CLI tools, reproducibility of a fresh laptop wins.
+- Record: `docs/missions/2026-11-12-pin-mise-seed-versions/`.
+
+------
+
 ## References
 
 - mise home: <https://mise.jdx.dev/>
