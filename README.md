@@ -121,14 +121,20 @@ Ansible copies the reference `roles/cli_tools/files/config.toml` to `~/.config/m
 | Goal | How |
 |---|---|
 | Add / remove a tool | `mise use -g <tool>@<version>` / `mise unuse -g <tool>` |
-| Upgrade within the declared ranges | `mise upgrade` |
-| Change a major (e.g. Node.js) | `mise use -g node@<major>` (or `mise upgrade --bump node`) |
+| Preview available updates | `mise outdated` (within the declared ranges), `mise outdated --bump` (newest overall, and the request `--bump` would write) |
+| Upgrade within the declared ranges | `mise upgrade` (moves `node`/`pnpm` inside their major; never moves an exact pin) |
+| Update one exactly pinned tool | `mise use -g <tool>@<version>` with a version picked from `mise outdated --bump` or `mise ls-remote <tool>` |
+| Change a major (e.g. Node.js) | `mise use -g node@<major>` |
 | Upgrade mise itself | `mise self-update` (Ansible's install task only runs when the binary is missing) |
 | Compare live config with the reference | `diff -u roles/cli_tools/files/config.toml ~/.config/mise/config.toml` |
-| Promote a validated live config to Git | `cp ~/.config/mise/config.toml roles/cli_tools/files/config.toml`, review the diff, then open a PR |
+| Promote a validated live version to Git | Copy that one line (`<tool> = "<version>"`) into `roles/cli_tools/files/config.toml`, review the diff, then open a PR |
 | Re-seed from the reference | Move the live config aside, then `make play TAGS=mise` |
 
-The reference pins Node.js and pnpm to a major (`node = "26"`, `pnpm = "12"`): `latest` would follow Node's moving Current line. Promotion is manual on purpose; keep secrets (`[env]`) out of the global config, or strip them before promoting.
+The reference uses two kinds of versions. Most tools are **exact pins** (`uv = "0.13.5"`), so a fresh laptop gets the versions validated on this one (kubectl is matched to the 1.34 clusters instead: client and server must stay within one minor version); `mise upgrade` leaves them alone and reports newer releases as outside the configured range. Node.js and pnpm are **major tracks** (`node = "26"`, `pnpm = "12"`): `mise upgrade` follows patches and minors, and `latest` would follow Node's moving Current line. Bump or promote one tool at a time; keep secrets (`[env]`) out of the global config, or strip them before promoting.
+
+`mise upgrade --bump [<tool>]` exists too, but it moves every selected tool to its newest release, **crossing a major track** when a newer major exists (`node = "26"` would become the next major, and kubectl would leave the clusters' minor), and **rewrites the selected requests in the config**. Preview it with `mise upgrade --bump --dry-run` first and prefer naming the tool.
+
+If the first `mise install` fails (network, a removed release), the next run will not retry it: the seeded config already exists. Run `~/.local/bin/mise install` by hand, or move the config aside and re-seed.
 
 ### Testing in a VM
 

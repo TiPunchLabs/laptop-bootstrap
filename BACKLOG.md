@@ -4,7 +4,7 @@ Open work, cleanup and deferred improvements. GitHub issues are disabled on this
 repo, so this file is the single place to track them. Remove an entry once it is
 done (git history keeps the trace).
 
-Last review: 2026-11-07.
+Last review: 2026-11-12.
 
 ## In progress
 
@@ -31,6 +31,14 @@ Nothing in progress.
 - Its `deb822_repository` task needs `python3-debian`, installed only by the
   untagged `bootstrap_packages`; `--tags vagrant` fails on a host that never had a
   full run. The `docker` role now installs it itself. Source: `docs/missions/2026-11-05-open-webui/`.
+
+### Smoke VM domain name is shared by every worktree
+- libvirt names the VM `smoke_default` from the directory name, so a second
+  worktree's `make smoke-up` collides with an existing VM. The pin-mise mission
+  reused the VM by copying `test/smoke/.vagrant/`, which made `vagrant up` run the
+  full provisioner (no provision sentinel) and filled the host disk. Options: a
+  per-checkout `lv.default_prefix` in `test/smoke/Vagrantfile`, or document the reuse.
+  Source: `docs/missions/2026-11-12-pin-mise-seed-versions/`.
 
 ## Deferred improvements
 
@@ -60,12 +68,29 @@ Optional; none of these blocks anything.
 ### postman-cli — install man pages
 - Source: `docs/superpowers/specs/2026-06-28-postman-cli-role-design.md:166`
 
+### cli_tools — retry a failed first `mise install`
+- The install task runs only when the seed copy reports `changed`. If it fails
+  after the copy, later runs skip it and the tools stay missing; the documented
+  recovery is `~/.local/bin/mise install` by hand. A retry condition (e.g. probe
+  `mise ls --missing`) would make it self-healing without reconciling the config.
+  Source: `docs/missions/2026-11-12-pin-mise-seed-versions/`.
+
 ### cli_tools — `kubectl-convert`
 - Dropped during the mise migration (not in the mise registry). Reinstate as a
   `get_url` task in `cli_tools` only if actually needed.
 - Source: `docs/adr/0001-unified-cli-tool-management-with-mise.md:65`
 
 ## Watch
+
+### Seed pins age; kubectl follows the cluster minor
+- `roles/cli_tools/files/config.toml` pins 12 tools exactly (2026-11-12). Newer
+  patches already existed (uv 0.13.7, fzf 0.75.0, chezmoi 2.74.1, terraform 1.17.2,
+  awscli 2.40.0); promote validated versions line by line.
+- kubectl is pinned to 1.34.13 for the 1.34 clusters (`vagrant` context: server
+  v1.34.3, tested; homelab `kubecluster` 1.34, dormant). Skew policy allows kubectl
+  ±1 minor: move the pin when a cluster leaves 1.33-1.35. The laptop's live config
+  was aligned to 1.34.13 on 2026-11-12.
+  Source: `docs/missions/2026-11-12-pin-mise-seed-versions/`.
 
 ### `openwebui.internal` end to end
 - Laptop side: `0.0.0.0:3030` behind a DOCKER-USER filter admitting only Caddy
