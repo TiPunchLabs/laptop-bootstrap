@@ -75,14 +75,14 @@ asks its image size interactively on first run), Docker setup (role `docker`).
 
 ## State
 
-- Phase: done (awaiting pilot-routed review)
+- Phase: done (review 1 addressed; PR #68 ready for review, merge is the owner's)
 - Branch / worktree: feat/mise-act-pinact / main checkout
 - Base commit: 019c7fa
 - Evidence dir: ~/.local/share/laptop-bootstrap-agent/2026-11-15-mise-act-pinact/ (`ac2-releases.txt`)
 - Reviewer: routed by pilot (review-claude)
-- Review cycle: 0 of 3
+- Review cycle: 1 of 3 (review-1-claude.md: PASS_WITH_RESERVATIONS, F1-F4 minor, handled docs/evidence-only)
 - Smoke VM: created for this mission (`make smoke-up`, first provision `TAGS=mise`), left running; `smoke-down` needs approval.
-- Next step: pilot routes the review of the draft PR; correction cycles return to this session.
+- Next step: owner merges PR #68, then runs `mise use -g act@0.2.97 pinact@5.0.2` on the laptop.
 
 ### AC2 findings (2026-11-15, `gh api repos/<repo>/releases`, `.../security-advisories`)
 
@@ -115,3 +115,4 @@ asks its image size interactively on first run), Docker setup (role `docker`).
 - 2026-11-15 decision: owner D4, verbatim « D4 B » (2026-11-15): pin act 0.2.97 with a recorded AC2 exception (a security fix overrides the 14-day age rule); pinact 5.0.2 unchanged. Executor resumed at plan step 3.
 - 2026-11-15 verify: AC1, AC2, AC3, AC4, AC5 VERIFIED (evidence dir). README and guide do not list tools: unchanged.
 - 2026-11-15 ship: implementation commit dbe84d3 pushed; draft PR #68 to main opened; report.md (Verdict: PASS, Version: dbe84d3…) committed and pushed. Executor stopped.
+- 2026-11-15 fix-1: review 1 PASS_WITH_RESERVATIONS on dbe84d3. Docs/evidence-only correction: F1 saved `ac2-advisories.txt` and cited it; F2 reworded the live-config hash claim and recorded the current value in `live-config-sha256.txt`; F3 reworded AC5 (exit statuses not recorded, not rerun); F4 no change (owner runs the AC6 command right after merge). Version stays dbe84d3. PR #68 marked ready.

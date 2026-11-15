@@ -35,7 +35,9 @@ The verdict covers the executor's verification only. The independent review has 
   - GHSA-5xfg-9629-mqgg (medium): secret masking can leave part of a secret in the log. Fixed in 0.2.97.
 - The release notes for 0.2.95, 0.2.96 and 0.2.97 list only those security fixes.
 - Owner decision D4, 2026-11-15, verbatim « D4 B »: pin act 0.2.97 and record an AC2 exception (a security fix overrides the 14-day age rule). This is recorded in the AC2 row, the D4 section and the Log of `mission.md`.
-- Sources: `gh api repos/{nektos/act,suzuki-shunsuke/pinact}/releases`, `gh api repos/nektos/act/security-advisories`. Output saved in the evidence dir as `ac2-releases.txt`.
+- Sources: `gh api repos/{nektos/act,suzuki-shunsuke/pinact}/releases` and `gh api repos/nektos/act/security-advisories`.
+  - `ac2-releases.txt` holds the release list: tags, prerelease and draft flags, publish dates.
+  - `ac2-advisories.txt` was added after review 1 (F1), captured at 2026-11-15T21:06Z. It holds the full act advisory list (ID, severity, affected and fixed ranges, summary), the release notes and linux-x64 assets of act 0.2.94 to 0.2.97, and the pinact 5.0.2 linux-amd64 assets.
 
 ## Verification
 
@@ -47,7 +49,9 @@ Evidence dir: `~/.local/share/laptop-bootstrap-agent/2026-11-15-mise-act-pinact/
 - AC2 — VERIFIED, with the D4 exception.
   - Method: `mise install act@0.2.97 pinact@5.0.2` with `MISE_DATA_DIR`, `MISE_CACHE_DIR`, `MISE_STATE_DIR`, `MISE_CONFIG_DIR` and `MISE_GLOBAL_CONFIG_FILE` pointed at a scratch directory.
   - Result: exit 0. `mise tool` reports the backends `aqua:nektos/act` and `aqua:suzuki-shunsuke/pinact`. The tools report `act version 0.2.97` and `pinact version 5.0.2`.
-  - The live `~/.config/mise/config.toml` has the same sha256 before and after (mtime 2026-11-12). Evidence: `ac2-isolated-install.txt`.
+  - The live `~/.config/mise/config.toml` was hashed before and after the install and the two values were equal. The evidence records only the result (`live config unchanged: yes`), not the hash values.
+  - After review 1 (F2), the current value was recorded in `live-config-sha256.txt`: `bbff8c10…b28f`, 365 bytes, mtime 2026-11-12 18:47 (before the mission).
+  - Evidence: `ac2-isolated-install.txt`, `live-config-sha256.txt`.
 - AC3 — VERIFIED.
   - Method: the smoke VM did not exist, so `LAPTOP_BOOTSTRAP_TAGS=mise make smoke-up` created it. Its first provision was limited to the `mise` tag, so the seed ran with no config present: exit 0, recap `ok=10 changed=6 failed=0`.
   - Inside the VM (user `vagrant`):
@@ -63,7 +67,10 @@ Evidence dir: `~/.local/share/laptop-bootstrap-agent/2026-11-15-mise-act-pinact/
   - Evidence: `ac4.txt`, `smoke-2.log`, `smoke-3.log`.
 - AC5 — VERIFIED.
   - Method: `make lint`, `.venv/bin/ansible-lint`, `.venv/bin/yamllint .` and `.venv/bin/ansible-playbook playbook.yml --syntax-check`, all with the dummy vault password file and direnv credentials unset.
-  - Result: all exited 0. ansible-lint passed at profile `production` and logged the expected "Decryption failed" warning on the vault file. The pre-commit hooks also passed during `git commit`. Evidence: `ac5-*.log`.
+  - Result: the logs are consistent with success: every pre-commit hook `Passed`, ansible-lint `0 failure(s), 0 warning(s)` at profile `production`, syntax check `playbook: playbook.yml`, and an empty yamllint log. The exit statuses were printed in the session but not written to the logs (F3), and the checks were not rerun.
+  - ansible-lint logged the expected "Decryption failed" warning on the vault file.
+  - The pre-commit hooks also passed during `git commit`.
+  - Evidence: `ac5-*.log`.
 - AC6 — VERIFIED: the owner command is in the "Owner command" section below. It was not executed.
 - AC-SAFE — VERIFIED.
   - No secrets were read: no `pass` or `ansible-vault`, and the vault was never decrypted.
@@ -86,12 +93,23 @@ Evidence dir: `~/.local/share/laptop-bootstrap-agent/2026-11-15-mise-act-pinact/
 - act 0.2.97 was pinned 11 days after its release, before the usual 14-day period (D4). The trade-off was accepted to avoid two high-severity advisories.
 - act runs the workflows of the repository it is pointed at, with access to the Docker daemon. Use it on trusted repositories.
 
+## Review 1
+
+- Reviewer: Claude Code, routed by the pilot. File: `review-1-claude.md`, brief: `review-brief-1-claude.md`.
+- Verdict: PASS_WITH_RESERVATIONS on `dbe84d3`. Four minor findings, no blocker or major.
+- F1, D4's factual basis was not in the evidence: fixed. The advisory list, release notes and assets were saved to `ac2-advisories.txt`, which is cited in the AC2 section. The data matches what this report already stated.
+- F2, the live-config hash was claimed without recorded values: fixed by rewording. AC2 now says the hashes were compared and equal but not recorded, and the current value is recorded in `live-config-sha256.txt`.
+- F3, the AC5 exit statuses were not recorded: fixed by rewording. AC5 now says the logs are consistent with success and the exit statuses were not recorded. Not rerun, as the pilot asked.
+- F4, the config.toml header says the pins were validated on the owner's laptop, but act and pinact were validated on the smoke VM only: no change, on the pilot's instruction. The owner runs the AC6 command right after merge, which makes the comment true.
+- The correction touched only docs and evidence. config.toml and the roles are unchanged, so `Version:` stays `dbe84d3`.
+
 ## Git state
 
 - Branch `feat/mise-act-pinact`, tracking `origin/feat/mise-act-pinact`.
 - Implementation commit `dbe84d35435d3ab5948c90cbeaa062d085b3e3bb` is pushed.
 - Draft PR https://github.com/TiPunchLabs/laptop-bootstrap/pull/68 targets `main` and is open, with head `dbe84d3`.
-- This report is in a following commit on the same branch. Nothing was merged, and no branch was deleted.
+- This report is in a following commit on the same branch (`7eeacd8`). The review 1 correction is in a further docs-only commit, and PR #68 was then marked ready for review.
+- Nothing was merged, and no branch was deleted.
 
 ## Owner command (live laptop, after merge, not executed)
 
@@ -111,5 +129,5 @@ pinact --version   # pinact version 5.0.2
 
 ## Next action
 
-- The pilot routes the independent review of PR #68. Correction cycles come back to this session.
-- After review: the owner merges, then runs the owner command above.
+- Review 1 has been addressed and PR #68 is ready for review.
+- The owner merges, then runs the owner command above right after merging (see F4).
