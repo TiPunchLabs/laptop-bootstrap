@@ -4,7 +4,7 @@ Open work, cleanup and deferred improvements. GitHub issues are disabled on this
 repo, so this file is the single place to track them. Remove an entry once it is
 done (git history keeps the trace).
 
-Last review: 2026-11-12.
+Last review: 2026-11-15.
 
 ## In progress
 
@@ -51,6 +51,13 @@ Optional; none of these blocks anything.
   `permissions: contents: read` and `persist-credentials: false` would cost nothing.
 - Source: `docs/missions/2026-11-05-checkout-v7/` (not a v7 change; out of that scope).
 
+### CI — pin workflow actions to commit SHAs with pinact
+- `.github/workflows/ci.yml` uses tag refs (`actions/checkout@v7`, …), which the
+  action owner can move. `pinact run` rewrites them to full SHAs with the tag as a
+  comment; `pinact` is now in the mise reference config. Decide how pins are kept
+  current (Dependabot / Renovate for `github-actions`, or `pinact run -u` by hand).
+- Source: `docs/missions/2026-11-15-mise-act-pinact/` (decision D3, out of that scope).
+
 ### libvirt — assert hardware KVM support
 - Add an early check (e.g. `/dev/kvm` exists, `kvm_amd` or `kvm_intel` loaded)
   so the role fails fast on hosts without virtualization.
@@ -83,7 +90,9 @@ Optional; none of these blocks anything.
 ## Watch
 
 ### Seed pins age; kubectl follows the cluster minor
-- `roles/cli_tools/files/config.toml` pins 12 tools exactly (2026-11-12). Newer
+- `roles/cli_tools/files/config.toml` pins 12 tools exactly (2026-11-12), plus
+  `act` and `pinact` (2026-11-15; act 0.2.97 was taken 11 days after release
+  because older versions carry high advisories). Newer
   patches already existed (uv 0.13.7, fzf 0.75.0, chezmoi 2.74.1, terraform 1.17.2,
   awscli 2.40.0); promote validated versions line by line.
 - kubectl is pinned to 1.34.13 for the 1.34 clusters (`vagrant` context: server
