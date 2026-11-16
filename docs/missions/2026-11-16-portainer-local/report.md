@@ -1,17 +1,115 @@
-# Report — 2026-11-16-portainer-local, step S1 (executor)
+# Report — 2026-11-16-portainer-local, step S1 (executor), updated for D1
 
 ## Verdict
 
-PARTIAL. Step S1 is complete within its scope. Several mission criteria wait, by
-design, on later steps:
+PARTIAL. S1 is complete, including the D1 implementation, which was tested on the
+VM. The remaining criteria wait on other actors:
 
-- LAN exposure of the laptop (AC2 and AC3 on the laptop, AC4 admin) waits for D1.
+- Laptop LAN exposure and admin (AC2/AC3/AC4 on the laptop): the owner's vault
+  edit and apply, see `owner-commands-d1.md`.
 - Independent review: S2.
 - HomeLab DNS and Caddy: S3 (AC6) and S4 (AC7).
 
-Version: a61f35f7f71deadf9b97497ceecb0cfa3f05ceb3. This is the code commit that was
-tested on the VM and applied on the laptop. The commit that adds this report
-changes documentation only.
+Version: 29624435c902870829ef068ebe71efce02cb6820. This is the current code commit,
+tested on the VM. The laptop runs a61f35f (S1, loopback only). The D1 commits
+(5de0c8a, 2962443) have only been run on the laptop in `--check` mode, which
+refused as designed and made no change, because agents have no vault access. The
+commit that adds this update changes documentation only.
+
+## Update for D1 (admin from a vault bcrypt hash)
+
+Owner decision, recorded in mission.md: « Hash dans Vault ». Commits:
+
+- 5de0c8a `feat(portainer): create the admin from a vault bcrypt hash (D1)`
+- 2962443 `fix(docker_port_filter): let --check preview a first exposure`
+
+### Implementation
+
+- Variable `portainer_admin_password_hash`:
+  - role default `""`;
+  - on this laptop, an alias in `group_vars/all/vars.yml` of
+    `vault_portainer_admin_password_hash` (encrypted `group_vars/all/vault/main.yml`,
+    with `| default('')`, the repository's public-alias convention).
+- Flag `--admin-password <bcrypt hash>`, not `--admin-password-file`. Per the
+  pinned version's CLI docs, `--admin-password-file` reads a plaintext password
+  from a file, which would put the password itself on disk. `--admin-password` is
+  the documented flag for a bcrypt hash, so no file and no file mode are involved.
+  - Trade-off: the hash is visible in `docker inspect portainer` (Args). It is
+    readable only by root and the `docker` group, who can already read the same
+    hash in Portainer's database. Documented in the role README.
+- No leak through Ansible:
+  - "Run the Portainer container" is `no_log` when a hash is set;
+  - the filter's `docker_container_info` probe is `no_log` for Portainer, via the
+    new parameter `docker_port_filter_container_info_no_log`, default false;
+    Open WebUI is unchanged;
+  - the format assert (`^[$]2[aby][$][0-9]{2}[$][./A-Za-z0-9]{53}$`) does not echo
+    the value.
+- Guards:
+  - Before exposure: the existing admin check is kept and now also passes when a
+    hash is set.
+  - New, after the container starts: when exposed, the role checks
+    `admin/check` again; anything but 204 makes it `docker stop` the container and
+    fail the run.
+- `group_vars/all/vars.yml` now publishes `0.0.0.0:9443` for `192.168.10.70`.
+  Without the vault hash the run is refused before any change; this was proven on
+  the laptop in `--check` mode (`laptop-10-check-nohash.log`).
+- Found while replaying the owner's sequence: under `--check`, "Enable the LAN
+  filter unit" failed on a first exposure because the unit file is not written in
+  check mode. This came from the original open_webui code. Fix: skip that task in
+  check mode when the unit file would change (2962443). Real runs are unchanged;
+  Open WebUI from the branch still reports `changed=0` with identical files and
+  rules (`vm-owui-S10.txt`).
+
+### VM tests with a throwaway hash
+
+The password was generated in the VM and the hash made with `htpasswd -niBC 10`
+(stdin). Ansible received it through a 0600 vars file (`E/vm-throwaway/`), never on
+a command line.
+
+| Case | Result | Evidence |
+|---|---|---|
+| Existing instance with an admin + hash + LAN | Container recreated (Args changed). Portainer log: "instance already has an administrator user defined, skipping admin password related flags". Old password login 200, hash password 422 | `vm-30-*` |
+| Fresh volume + hash + LAN, one run | changed=2. Log "created admin user with the given password" before "starting HTTPS server"; no setup token; admin_check 204; login 200 | `vm-31-*` |
+| Rerun with `-v` | changed=0 | `vm-32-*` |
+| Laptop-like: loopback instance without admin, then hash + LAN | Container recreated, admin created at start, 204, login 200 | `vm-33-*`, `vm-34-*` (run with `-vvv`) |
+| `--check --diff` with hash | changed=0, no value printed | `vm-35-*` |
+| Malformed hash | Refused by the format assert, changed=0, value not echoed | `vm-36-*` |
+| group_vars LAN, no hash, no admin | Refused before any change, still 127.0.0.1, no unit or chain | `vm-37-*`, `vm-38-*` |
+| group_vars LAN + hash | Filter for 192.168.10.70, `0.0.0.0:9443`, 204; rerun changed=0 | `vm-39-*`, `vm-40-*` |
+| Owner sequence: `--check` → apply → rerun → `--check` | changed=3 (script, unit, container), no state change → changed=6 → 0 → 0 | `vm-45-*` to `vm-49-*` |
+| Hash leak scan | 0 occurrences of the hash or its salt across `vm-30`…`vm-49` logs | grep in session |
+
+Not verified: the stop-on-no-admin branch of the post-start check. It would need
+a Portainer that ignores `--admin-password` on a database without an admin, which
+could not be reproduced. The branch is a plain `docker stop` plus an assert.
+
+### Laptop
+
+- No apply of the D1 code (vault needed).
+- `--check` run of 5de0c8a without the vault: refused at "Refuse LAN exposure
+  without an admin account", changed=0 (`laptop-10-check-nohash.log`).
+- The current instance answers `admin/check` with HTTP 303: setup timed out, no
+  admin. Harmless: with the hash, the container is recreated and the admin is
+  created at start (same as the laptop-like VM case).
+- State after S1 and D1 work (`laptop-state-d1.log`):
+  - Portainer on `127.0.0.1:9443`;
+  - DOCKER-USER holds only the Open WebUI hook;
+  - Open WebUI files and container unchanged;
+  - backup unchanged;
+  - main checkout snapshot unchanged (`main-tree-snap-final-2.log`).
+
+### Owner commands
+
+`~/.local/share/laptop-bootstrap-agent/2026-11-16-portainer-local/owner-commands-d1.md`
+(copy: `owner-commands-d1.md` in this mission directory). It covers:
+
+1. Hash generation with `htpasswd -nBC 12 ''` (no echo, no argument, into a 0600
+   file under `$XDG_RUNTIME_DIR`).
+2. `make vault-edit` with `:r`, then `shred -u`.
+3. `--check` preview, then `make play-portainer` twice.
+4. The checks to report back: recap lines, status codes, rule listings, counters,
+   hashes, Caddy/dns-71 matrix, and "login OK" only. It never asks for the
+   password, the hash or `docker inspect portainer`.
 
 ## Summary
 
@@ -137,7 +235,7 @@ use community.*"). This happens on `main` too (`E/smoke-up.log`).
 | AC1 | VERIFIED (VM + laptop, loopback) | VM `vm-10` changed=2 → `vm-11` changed=0; laptop `laptop-02-apply.log` ok=27 changed=2 → `laptop-03-idem.log` changed=0. Only `docker` + `portainer` + the two `always` facts ran (task list in `vm-10`). Image `portainer/portainer-ce:2.45.3`, volume `portainer_data`, `unless-stopped`. Health: host-side API wait (see Design choices) |
 | AC2 | VM VERIFIED; laptop loopback VERIFIED; laptop LAN NOT_VERIFIED (D1 pending) | VM `vm-checks-S3.log` + `vm-checks-S3-counters.log`: allowed host → 200, a container on another Docker network → 000 (PORTAINER DROP 5 pkts), 9000/8000 → 000, `ip6tables DOCKER-USER` empty. VM `vm-checks-S5.log`: after a source change the host gets 000 while Open WebUI still answers it 200. Laptop `laptop-after-apply.log`: `127.0.0.1:9443` only, no IPv6 listener, `docker port` → `127.0.0.1:9443` |
 | AC3 | VM VERIFIED; laptop: Open WebUI unchanged VERIFIED, Portainer filter lifecycle NOT_APPLICABLE until exposure | VM: before exposure, the refused run made no change (`vm-12`, `vm-checks-S2`). Docker restart: both units re-ran before dockerd (`vm-docker-restart.log`). VM reboot: both units finished before docker.service (`vm-reboot.log`). Disable: unit, script, hook and chain removed, docker `Requires` no longer lists portainer-firewall, rerun changed=0 (`vm-16`, `vm-17`, `vm-checks-S6`). Open WebUI sentinel: script/unit hashes and rules identical to the main-built baseline after the branch run, after exposure and after disable (`vm-owui-files-main.txt` vs `vm-owui-files-branch.txt`, `vm-owui-S3.txt`, `vm-owui-S6.txt`). Laptop: DOCKER-USER and OPEN-WEBUI-INGRESS identical before/after, hashes `ab2e1a0b…` / `e835d061…` unchanged. The templates render byte-identical to those laptop files (`E/render/`) |
-| AC4 | Guard VERIFIED (VM); laptop admin NOT_VERIFIED (D1) | VM: LAN request with no admin → fatal "has no admin account yet (… HTTP 404)", changed=0, no unit/chain (`vm-12`). After admin creation (204) exposure succeeds (`vm-13`). Port change while exposed → refused, nothing changed (`vm-19`). Admin persists across container recreation (`vm-admin-persist.log`). No secret in repo or diffs (gitleaks pass). The setup token is redacted in every evidence log. The VM throwaway admin password was generated inside the VM (`/root/pt-admin-pass`) and never printed |
+| AC4 | D1 implementation and guards VERIFIED (VM, see Update for D1); laptop admin NOT_VERIFIED (owner apply pending) | VM: LAN request with no admin → fatal "has no admin account yet (… HTTP 404)", changed=0, no unit/chain (`vm-12`). After admin creation (204) exposure succeeds (`vm-13`). Port change while exposed → refused, nothing changed (`vm-19`). Admin persists across container recreation (`vm-admin-persist.log`). No secret in repo or diffs (gitleaks pass). The setup token is redacted in every evidence log. The VM throwaway admin password was generated inside the VM (`/root/pt-admin-pass`) and never printed |
 | AC5 | VERIFIED | Mounts exactly `portainer_data:/data` and `/var/run/docker.sock` (bind), on VM and laptop. Args `["--http-disabled"]`. Risk section in `roles/portainer/README.md` |
 | AC6 | NOT_APPLICABLE (S3) | — |
 | AC7 | NOT_APPLICABLE (S4) | — |
@@ -205,33 +303,20 @@ available non-interactively; no vault value was needed for this tag.
 
 ## Decisions required
 
-- D1 (admin bootstrap), still open. Facts that bear on it:
-  - From the CLI docs: `--admin-password` takes a bcrypt hash. Passed as a
-    container argument, it is readable in `docker inspect`.
-  - `--admin-password-file` takes a plaintext password file. The mission's
-    recommendation wording ("bcrypt hash … with `--admin-password-file`") mixes
-    the two.
-  - Both apply only when the admin is first created.
-  - The recommended option needs a role change: a vault-backed variable, plus the
-    guard accepting a run where the admin is created at container start. It also
-    needs the owner's `ansible-vault edit`.
-  - The alternative needs no code change. The owner creates the admin on
-    `https://127.0.0.1:9443` with the setup token, then uncomments the two lines
-    in `group_vars/all/vars.yml` and runs `make play-portainer`.
+- D1: recorded and implemented (see Update for D1). Remaining owner action: the
+  vault edit and laptop apply in `owner-commands-d1.md`.
+- Vault commit: the owner's `make vault-edit` modifies the encrypted
+  `group_vars/all/vault/main.yml` in this worktree. The pilot decides whether it
+  is committed on `feat/portainer-local`. Without that commit, `main` after merge
+  would lack the hash, and the next run would refuse LAN exposure on a fresh
+  install. An existing admin is unaffected.
 - The S3 brief should carry the protocol choice: upstream
   `https://192.168.10.217:9443` with `tls_insecure_skip_verify` (or a pinned
   certificate), as justified above.
 
 ## Recommended next action
 
-- Pilot: record D1 in mission.md and dispatch the S2 review of a5676d9..HEAD.
-  The report commit follows a61f35f.
-- After D1 (alternative), the owner runs:
-  1. `docker restart portainer`
-  2. create the admin at `https://127.0.0.1:9443`, using
-     `docker logs portainer 2>&1 | grep -o 'setup_token=[^ ]*'`
-  3. uncomment `portainer_bind_address` and `portainer_allowed_sources` in
-     `group_vars/all/vars.yml`
-  4. `make play-portainer` twice (the second run should report `changed=0`)
-  5. the AC2/AC3 laptop matrix
+- Pilot: dispatch the S2 review of a5676d9..HEAD (code at 2962443). In parallel
+  or after it, hand the owner `owner-commands-d1.md` and collect the reported
+  outputs.
 - Nothing was pushed; push and PR wait for the pilot.
