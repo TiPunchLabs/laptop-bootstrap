@@ -65,5 +65,15 @@ Authorized: laptop-bootstrap worktree + smoke VM; targeted apply of the `portain
 
 ## State
 
-- Phase: S1 to dispatch
+- Phase: S1 done (executor), waiting for D1 and the S2 review
+- Branch / worktree: feat/portainer-local (no upstream) / ../laptop-bootstrap-worktrees/portainer
+- Base commit: 0b892c6; code verified at a61f35f7f71deadf9b97497ceecb0cfa3f05ceb3
+- Evidence dir: ~/.local/share/laptop-bootstrap-agent/2026-11-16-portainer-local/
+- Main-tree snapshot baseline: evidence dir, main-tree-snap-baseline.txt (unchanged at the end of S1)
+- Laptop: portainer 2.45.3 on 127.0.0.1:9443, no admin yet, no LAN exposure
 - Review cycle: 0 of 3
+- Next step: owner records D1; pilot dispatches the S2 review (report.md lists what to review)
+
+## Log
+
+- 2026-11-16 S1: role portainer + shared docker_port_filter (Open WebUI filter extracted, rendered files byte-identical); smoke VM lifecycle tests; laptop apply --tags portainer, loopback only (changed=2, rerun changed=0). Report: report.md.
