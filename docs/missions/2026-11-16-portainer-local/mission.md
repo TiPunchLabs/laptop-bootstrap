@@ -67,11 +67,11 @@ Authorized: laptop-bootstrap worktree + smoke VM; targeted apply of the `portain
 
 - Phase: S1 + D1 implementation done (executor); waiting for the S2 review and the owner's vault edit + laptop apply
 - Branch / worktree: feat/portainer-local (no upstream) / ../laptop-bootstrap-worktrees/portainer
-- Base commit: 0b892c6; code verified at 29624435c902870829ef068ebe71efce02cb6820 (laptop runs a61f35f)
+- Base commit: 0b892c6; code verified at 21b839f4c8548dcbaa067265b8bfda2d3511ee27 (laptop runs a61f35f)
 - Evidence dir: ~/.local/share/laptop-bootstrap-agent/2026-11-16-portainer-local/
 - Main-tree snapshot baseline: evidence dir, main-tree-snap-baseline.txt (unchanged at the end of S1)
 - Laptop: portainer 2.45.3 on 127.0.0.1:9443, no admin yet (setup timed out), no LAN exposure
-- Review cycle: 0 of 3
+- Review cycle: 1 of 3 (review-1 CHANGES_REQUESTED, answered in 21b839f)
 - Next step: pilot dispatches S2; owner runs owner-commands-d1.md (vault hash, make play-portainer) and reports outputs
 
 ## Log
@@ -82,3 +82,4 @@ Authorized: laptop-bootstrap worktree + smoke VM; targeted apply of the `portain
 
 - 2026-11-16 (owner decision D1): « Hash dans Vault (Recommandé) » — the bcrypt hash of the Portainer admin password is stored in Ansible Vault by the owner (`ansible-vault edit`), and the role passes it to Portainer with `--admin-password-file` (or the documented equivalent for the pinned version) so the instance never runs without an admin. Agents have no Vault access: the executor implements and tests it with a throwaway hash on the VM, then hands the owner the exact sanitized commands (generate the hash, `ansible-vault edit`, targeted apply) that ask only for recap/status output.
 - 2026-11-16 D1 implemented: --admin-password <vault bcrypt hash> (5de0c8a), check-mode fix in docker_port_filter (2962443); VM tests with a throwaway hash (existing admin kept, fresh/laptop-like instance gets the admin at start, no leak at -vvv/--check --diff); laptop --check without vault refused, no change. Owner commands: owner-commands-d1.md. Report updated.
+- 2026-11-16 fix-1: review-1 F1.1/F1.2 fixed in 21b839f (admin proven on the mounted volume; hash only in a one-shot unpublished bootstrap container; unconditional no_log); VM scenarios incl. the reviewer's, poller 0 x 404, leak scans 0; laptop --check refused, no change.

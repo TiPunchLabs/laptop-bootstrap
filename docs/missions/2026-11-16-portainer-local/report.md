@@ -1,4 +1,4 @@
-# Report — 2026-11-16-portainer-local, step S1 (executor), updated for D1
+# Report — 2026-11-16-portainer-local, step S1 (executor), updated for D1 and review 1
 
 ## Verdict
 
@@ -7,14 +7,115 @@ VM. The remaining criteria wait on other actors:
 
 - Laptop LAN exposure and admin (AC2/AC3/AC4 on the laptop): the owner's vault
   edit and apply, see `owner-commands-d1.md`.
-- Independent review: S2.
+- Independent review: S2, cycle 1 answered below (review 2 pending).
 - HomeLab DNS and Caddy: S3 (AC6) and S4 (AC7).
 
-Version: 29624435c902870829ef068ebe71efce02cb6820. This is the current code commit,
-tested on the VM. The laptop runs a61f35f (S1, loopback only). The D1 commits
-(5de0c8a, 2962443) have only been run on the laptop in `--check` mode, which
-refused as designed and made no change, because agents have no vault access. The
-commit that adds this update changes documentation only.
+Version: 21b839f4c8548dcbaa067265b8bfda2d3511ee27. This is the current code commit,
+tested on the VM. The laptop runs a61f35f (S1, loopback only). Commits after
+a61f35f have only been run on the laptop in `--check` mode without the vault,
+refused as designed with no change (`laptop-10-check-nohash.log` for 5de0c8a,
+`laptop-20-check-nohash.log` for 21b839f). The commit that adds this update
+changes documentation only.
+
+## Review 1 (Codex, CHANGES_REQUESTED on 2962443) and resolution
+
+Fix commit: 21b839f `fix(portainer): bootstrap the admin with a one-shot container
+(review 1)`. Evidence: `E/r1-*.log` (VM runs), `E/poll-*.txt` (statuses seen by an
+allowed LAN client during each run). Scenarios ran through `E/scenario.sh`.
+
+### F1.1 [major] The pre-exposure check trusted the running instance, not the volume to be mounted
+
+Fixed.
+
+- `roles/portainer/tasks/admin.yml` runs before the volume, the filter and the
+  container are touched.
+- "Admin ready" now requires the running `portainer` container to mount
+  `portainer_volume_name` on `/data` **and** answer 204 on
+  `/api/users/admin/check` at its bridge address. That address is independent of
+  the published bind and port.
+- Otherwise:
+  - with a hash, a one-shot bootstrap container creates the admin on that exact
+    volume first;
+  - without a hash, LAN exposure is refused.
+- Volume creation moved after this step, so a refusal changes nothing.
+
+VM evidence, with a poller on the host as an allowed LAN client every 0.2 s:
+
+| Scenario | Result |
+|---|---|
+| Initialized instance, `portainer_volume_name` → new volume, no hash, LAN (`r1-f11a2-*`) | Refused, changed=0, new volume not created; poller 61 × 204 (the untouched old instance), 0 × 404 |
+| Same with hash (`r1-f11b2-*`) | Old container stopped → bootstrap on the new volume → `portainer` recreated on `pt_fresh2`; poller 31 × 000 (port closed) then 67 × 204, **0 × 404**; login with the hash password 200; no setup token; rerun changed=0 |
+| Fresh install, hash, LAN, `-vvv` (`r1-fresh-hash-lan-vvv`) | changed=3; 0 × 404; login 200; Args `["--http-disabled"]` |
+| Laptop-like: loopback instance without admin, then the owner sequence (`r1-ll2-*`) | `--check` changed=4 with no state change; apply `-vvv` changed=9 with 0 × 404; rerun changed=0; steady `--check` changed=0 |
+| Emergency `docker stop`, rerun with hash (`r1-stopped-hash`) | Bootstrap on the volume that already has an admin (Portainer skips the flag), then started; 0 × 404 |
+| Emergency `docker stop`, rerun without hash (`r1-stopped-nohash`) | Refused, changed=0, stays stopped |
+
+Defect found and fixed during these tests: the first F1.1-b run (`r1-f11b-*`)
+left the bootstrap container running.
+
+- Cause: a block's `when` is re-evaluated for its `always` tasks. The block set
+  `portainer_admin_ready`, which made its own condition false, so the removal was
+  skipped.
+- Effect: the real container crash-looped on the BoltDB lock and served nothing
+  (poller: only 000, no 404).
+- Fix: the decision is frozen in `portainer_bootstrap_needed` before the block.
+  Verified by the `r1-f11b2-*` replay.
+
+### F1.2 [major] Secret material could reach output (conditional no_log, hash in Args)
+
+Fixed by design, as reconsidered at the pilot's request.
+
+- Portainer 2.45.3 has no file mechanism for a hash: `--admin-password-file`
+  reads plaintext, and Docker secrets need Swarm. So the hash is never given to
+  the long-running container. Only the unpublished, short-lived
+  `portainer-bootstrap` container gets `--admin-password`, and it is removed in an
+  `always` section.
+- `no_log: true` is unconditional on every task that sees the hash or container
+  facts:
+  - bootstrap start, bootstrap info and bootstrap removal;
+  - the current-container probe;
+  - "Run the Portainer container";
+  - the filter's container probe.
+- Upgrade path: a container made by 5de0c8a/2962443 (hash in Args) is recreated
+  with `--http-disabled` only.
+
+VM evidence:
+
+- Reviewer's transition: hash present → hash empty, `--check -vvv` against a
+  container that still had the hash in Args (`r1-f12a-*`, then `r1-f12b-*` with the
+  hash set). Both changed=2 (preview), 0 occurrences of the hash or its salt.
+- Real upgrade run `-vvv` with the hash empty (`r1-f12c-*`): Args became
+  `["--http-disabled"]`, `Config.Cmd` has no admin flag, no bootstrap container
+  left.
+- After all scenarios, `docker inspect` of every container on the VM:
+  0 bcrypt strings, 0 `admin-password`.
+- Scan of 24 `E/r1-*.log` files (several at `-vvv`, plus `--check`): 0 full hash,
+  0 salt, 0 strings matching the bcrypt pattern.
+- Malformed hash (`r1-badhash`): refused, value not echoed.
+- The README's secrecy statements were rewritten for this design and now cover
+  every variable state.
+
+### Minor findings
+
+None were listed in review 1. Reservations noted by the reviewer:
+
+- Open WebUI's check-mode unit skip is intentional.
+- No password file is used.
+- The laptop D1 apply is pending.
+
+These are unchanged. Open WebUI was rechecked on the VM from this branch:
+changed=0, script, unit and rules identical to the main-built baseline
+(`vm-owui-R1.txt`).
+
+### Laptop (read-only)
+
+- `--check` of 21b839f without the vault: refused at "Refuse LAN exposure without
+  a proven admin account", changed=0. Still `127.0.0.1:9443`; DOCKER-USER holds
+  only the Open WebUI hook; no bootstrap container (`laptop-20-check-nohash.log`).
+- The bridge-address probe works on the laptop: `https://172.17.0.4:9443` answered
+  303, the timed-out setup state (`laptop-bridge-probe.log`).
+- The owner procedure keeps the same steps; its expected recaps and checks are
+  updated in `owner-commands-d1.md`.
 
 ## Update for D1 (admin from a vault bcrypt hash)
 
@@ -34,9 +135,8 @@ Owner decision, recorded in mission.md: « Hash dans Vault ». Commits:
   pinned version's CLI docs, `--admin-password-file` reads a plaintext password
   from a file, which would put the password itself on disk. `--admin-password` is
   the documented flag for a bcrypt hash, so no file and no file mode are involved.
-  - Trade-off: the hash is visible in `docker inspect portainer` (Args). It is
-    readable only by root and the `docker` group, who can already read the same
-    hash in Portainer's database. Documented in the role README.
+  - Superseded by review 1: the hash no longer sits in the long-running
+    container's Args; only the one-shot bootstrap container gets it (see Review 1).
 - No leak through Ansible:
   - "Run the Portainer container" is `no_log` when a hash is set;
   - the filter's `docker_container_info` probe is `no_log` for Portainer, via the
@@ -316,7 +416,7 @@ available non-interactively; no vault value was needed for this tag.
 
 ## Recommended next action
 
-- Pilot: dispatch the S2 review of a5676d9..HEAD (code at 2962443). In parallel
-  or after it, hand the owner `owner-commands-d1.md` and collect the reported
-  outputs.
+- Pilot: dispatch review 2 on 21b839f; this report answers F1.1 and F1.2. Then
+  hand the owner `owner-commands-d1.md` (updated for 21b839f) and collect the
+  reported outputs.
 - Nothing was pushed; push and PR wait for the pilot.
