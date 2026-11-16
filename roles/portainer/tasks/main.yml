@@ -32,40 +32,16 @@
     name: python3-requests
     state: present
 
+# Prove (or, with a hash, create) the admin on the volume that will be mounted,
+# before the filter and the published container. See admin.yml. A refusal there
+# leaves everything as it was (the volume is created afterwards).
+- name: Establish the Portainer admin account
+  ansible.builtin.import_tasks: admin.yml
+
 - name: Create the Portainer data volume
   community.docker.docker_volume:
     name: "{{ portainer_volume_name }}"
     state: present
-
-# A fresh instance has no admin: its setup page (protected by a one-time token
-# printed in the container log) must never be reachable from the LAN. Without a
-# password hash, LAN exposure is refused until the running container reports an
-# admin: GET /api/users/admin/check answers 204 when one exists, 404 when not.
-# With a hash, Portainer creates the admin at start (--admin-password) before it
-# serves anything; the check after the container start below enforces it.
-- name: Check that the Portainer admin account exists before LAN exposure
-  ansible.builtin.uri:
-    url: "{{ portainer_local_url }}/api/users/admin/check"
-    validate_certs: false
-    status_code: [204, 404]
-  register: portainer_admin_check
-  failed_when: false
-  check_mode: false
-  when: portainer_lan_exposed | bool
-
-- name: Refuse LAN exposure without an admin account
-  ansible.builtin.assert:
-    that: >-
-      portainer_admin_check.status | default(-1) == 204
-      or portainer_admin_password_hash | length > 0
-    fail_msg: >-
-      Portainer at {{ portainer_local_url }} has no admin account yet (or does not
-      answer: HTTP {{ portainer_admin_check.status | default('n/a') }}) and no
-      portainer_admin_password_hash is set. Set the hash in the vault, or run the
-      role with portainer_bind_address 127.0.0.1 first and create the admin at
-      https://127.0.0.1:{{ portainer_host_port }}, then expose it (see the role README).
-    quiet: true
-  when: portainer_lan_exposed | bool
 
 # Before the container: the filter must be in place when the port leaves loopback.
 - name: Filter LAN access to the published port
@@ -82,7 +58,7 @@
     docker_port_filter_host_port: "{{ portainer_host_port }}"
     docker_port_filter_container_port: "{{ portainer_container_port }}"
     docker_port_filter_allowed_sources: "{{ portainer_allowed_sources }}"
-    # The container's Args hold the admin password hash.
+    # Containers made by earlier versions of this role carried the hash in Args.
     docker_port_filter_container_info_no_log: true
   when: portainer_lan_exposed | bool
 
@@ -91,11 +67,10 @@
 # --http-disabled: HTTPS only, no HTTP listener on 9000. Port 8000 (Edge agent
 # tunnel) is not published. unless-stopped rather than upstream's `always`, like
 # open_webui: a `docker stop` (port change, emergency) survives a Docker restart.
-# --admin-password takes a bcrypt hash and only acts while no admin exists
-# (--admin-password-file would need the plaintext password in a file). The hash
-# stays in the container's Args (docker inspect): only root and the docker group
-# can read them, and they can read Portainer's database anyway. no_log keeps it
-# out of Ansible output and --diff.
+# Never given the admin hash (only the one-shot bootstrap container is). no_log
+# unconditionally: the module returns the facts of the existing container (also
+# under --check), and a container made by an earlier version of this role may
+# still carry a hash in its Args until this task recreates it.
 - name: Run the Portainer container
   community.docker.docker_container:
     name: "{{ portainer_container_name }}"
@@ -104,10 +79,8 @@
     state: started
     restart_policy: unless-stopped
     container_default_behavior: no_defaults
-    command: >-
-      {{ ['--http-disabled']
-         + (['--admin-password', portainer_admin_password_hash]
-            if portainer_admin_password_hash | length > 0 else []) }}
+    command:
+      - --http-disabled
     published_ports:
       - "{{ portainer_bind_address }}:{{ portainer_host_port }}:{{ portainer_container_port }}"
     mounts:
@@ -118,7 +91,7 @@
         source: "{{ portainer_volume_name }}"
         target: /data
   register: portainer_container
-  no_log: "{{ portainer_admin_password_hash | length > 0 }}"
+  no_log: true
 
 # The image has no shell or HTTP client, so no Docker HEALTHCHECK can be
 # defined; the run waits on the public status endpoint from the host instead, so a
@@ -145,8 +118,8 @@
     quiet: true
   when: not ansible_check_mode
 
-# With a hash, exposure did not wait for the admin: prove it exists now. If not,
-# stop the container (unless-stopped keeps it stopped) and fail.
+# Defence in depth: the published instance must report an admin. If not, stop
+# it (unless-stopped keeps it stopped) and fail.
 - name: Check that the Portainer admin account exists after start
   ansible.builtin.uri:
     url: "{{ portainer_local_url }}/api/users/admin/check"

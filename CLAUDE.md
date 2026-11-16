@@ -100,9 +100,9 @@ keyring under `/usr/share/keyrings/` is never deleted (README → APT keyrings).
   Never touches the `brain-rag_open-webui` volume. Ops: `roles/open_webui/README.md`.
 - `portainer`: pinned `portainer/portainer-ce:X.Y.Z` (LTS), HTTPS `127.0.0.1:9443` by
   default, Docker socket mounted (root-equivalent), depends on `docker`. Admin from
-  `vault_portainer_admin_password_hash` (bcrypt, `--admin-password`, `no_log`). A
-  non-loopback bind needs an admin (`/api/users/admin/check` = 204) or that hash, then
-  installs its own filter (unit `portainer-firewall`); this laptop publishes
+  `vault_portainer_admin_password_hash` (bcrypt), given only to a one-shot, unpublished
+  `portainer-bootstrap` container (`no_log`); the real container never carries it. A
+  non-loopback bind needs the mounted volume proven to have an admin, then installs its own filter (unit `portainer-firewall`); this laptop publishes
   `0.0.0.0:9443` for the homelab Caddy only. Ops: `roles/portainer/README.md`.
 - `docker_port_filter`: internal, imported by `open_webui` and `portainer`; one
   DOCKER-USER chain + boot-time unit per caller. Templates must keep rendering the

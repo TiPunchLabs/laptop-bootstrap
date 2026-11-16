@@ -35,11 +35,28 @@ Open <https://127.0.0.1:9443> (self-signed certificate: accept the browser warni
 `portainer_admin_password_hash` holds the **bcrypt hash** of the admin password
 (user `admin`). On this laptop it is the alias of
 `vault_portainer_admin_password_hash` in the encrypted
-`group_vars/all/vault/main.yml` (`group_vars/all/vars.yml`). The role passes it as
-`--admin-password <hash>`: Portainer creates the admin **before** it starts its
-HTTPS server (log: `created admin user with the given password`), so the instance
-never serves a setup page and needs no setup token. `--admin-password-file` is not
-used: it takes the plaintext password in a file.
+`group_vars/all/vault/main.yml` (`group_vars/all/vars.yml`).
+
+Portainer 2.45 accepts a hash only as a command-line flag (`--admin-password`);
+`--admin-password-file` reads the plaintext password, and Docker secrets need
+Swarm. So the long-running container **never gets the hash**. When the volume is
+not proven to have an admin, the role runs a **one-shot bootstrap container**
+(`portainer-bootstrap`) on that volume:
+
+- the role stops the current `portainer` container first, because BoltDB allows
+  one process per volume;
+- the bootstrap container publishes no port and sits on the default bridge only;
+- its command is `--admin-password <hash>`; Portainer creates the admin before it
+  starts serving;
+- the role checks `GET /api/users/admin/check` = 204 on its bridge address, then
+  removes it (`block`/`always`);
+- after that, `portainer` is started on the same volume with `--http-disabled`
+  only.
+
+The hash therefore exists in Docker metadata only for the seconds the bootstrap
+container lives. Every task that sees it, or the facts of an existing container,
+is `no_log` unconditionally, whatever the hash value, under `-vvv`,
+`--check` and `--diff`. The format check never echoes the value.
 
 Create the hash without the password on the command line or in the shell history
 (`htpasswd` from `apache2-utils` prompts twice, without echo):
@@ -52,21 +69,16 @@ shred -u "$XDG_RUNTIME_DIR/portainer-hash"
 
 Behaviour:
 
-| Instance state | What the hash does |
+| State before the run | What happens |
 |---|---|
-| New volume | Admin created at first start, then HTTPS starts |
-| Existing volume without admin (setup never done) | The container is recreated with the flag (its arguments changed) and the admin is created at start |
-| Existing admin | Ignored. Portainer logs `instance already has an administrator user defined, skipping admin password related flags`; the current password stays valid |
+| `portainer` running on `portainer_volume_name`, answering 204 (admin) | Nothing; the hash is not used (`changed=0`) |
+| New volume, or `portainer_volume_name` changed to a volume without admin | Bootstrap creates the admin on that volume, then `portainer` is (re)created on it |
+| Existing volume without admin (setup never done) | Same: bootstrap creates the admin, then `portainer` restarts on it |
+| `portainer` stopped (e.g. `docker stop`), volume with admin | Bootstrap starts; Portainer logs `instance already has an administrator user defined, skipping admin password related flags`; the current password stays valid |
+| Container from an earlier version of this role with the hash in its Args | Recreated with `--http-disabled` only; the hash leaves the metadata |
 
 The hash only bootstraps the admin. Change the password later in the UI; changing
-the vault value afterwards only recreates the container (its arguments change),
-it does not change the password.
-
-Where the hash is visible: the container's arguments (`docker inspect portainer`),
-readable by root and the `docker` group, who can read Portainer's database (same
-hash) anyway. Do not paste `docker inspect portainer` output anywhere. Ansible
-never prints it: the container task and the filter's container probe are `no_log`
-(also under `-vvv` and `--check --diff`), and the format check does not echo the value.
+the vault value afterwards does nothing while the admin exists.
 
 ### By hand (no hash)
 
@@ -84,13 +96,20 @@ Create the admin on <https://127.0.0.1:9443>, then expose the port.
 
 ### Never exposed without an admin
 
-With a non-loopback `portainer_bind_address`:
+With a non-loopback `portainer_bind_address`, before the volume, the filter or the
+container is touched, the role requires the **volume that will be mounted** to be
+proven to have an admin. Proven means one of:
 
-- before the firewall or the container is touched, the role asks the running
-  container `GET /api/users/admin/check` and fails unless it answers 204 (admin
-  exists) **or** a hash is set;
-- after the container starts, it asks again; anything but 204 stops the container
-  (it stays stopped, `unless-stopped`) and fails the run.
+- the running `portainer` container mounts `portainer_volume_name` on `/data` and
+  answers 204 on its bridge address; an admin on another volume does not count;
+- or the bootstrap above just created the admin there.
+
+Otherwise the run fails and nothing changes. Without a hash, a stopped container
+also fails this check: start it (`docker start portainer`) or apply on loopback
+first.
+
+After the container starts, the published instance is asked again. Anything but
+204 stops it (it stays stopped, `unless-stopped`) and fails the run.
 
 ## Variables
 
@@ -108,8 +127,8 @@ With a non-loopback `portainer_bind_address`:
 
 Fixed by the role: restart policy `unless-stopped` (upstream uses `always`; with
 `unless-stopped` a `docker stop` survives a Docker restart, which the port-change
-and emergency procedures rely on); command `--http-disabled` (plus
-`--admin-password` when a hash is set); mounts below.
+and emergency procedures rely on); command `--http-disabled`; mounts below. The admin hash only goes to the one-shot
+bootstrap container (see [The admin account](#the-admin-account)).
 
 ## Ports and protocol
 
@@ -142,9 +161,10 @@ login is therefore what stands between the network and root. Mitigations:
 
 - Loopback by default; LAN exposure only by explicit variables, and only for
   the listed sources (the homelab Caddy), enforced in DOCKER-USER.
-- The setup page is never exposed: admin from the vault hash at first start, and
-  admin checks before and after the container start (above). It also needs the
-  log-printed setup token.
+- The setup page is never exposed: the admin is created by the bootstrap
+  container before anything is published, and the volume to be mounted is proven
+  to have an admin before and after the container start (above). It also needs
+  the log-printed setup token.
 - HTTPS on every hop: browser → Caddy (internal CA), Caddy → laptop (9443).
 - HTTP 9000 and the Edge tunnel 8000 are not published.
 - Use a strong admin password; do not create extra users without need.
