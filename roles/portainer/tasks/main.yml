@@ -108,7 +108,8 @@
   retries: "{{ (portainer_health_timeout | int / 5) | round(0, 'ceil') | int }}"
   delay: 5
   changed_when: false
-  check_mode: false
+  # --check creates no container: nothing to wait for.
+  when: not ansible_check_mode
 
 - name: Check the running Portainer version
   ansible.builtin.assert:
