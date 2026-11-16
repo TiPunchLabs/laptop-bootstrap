@@ -17,6 +17,8 @@ docker_port_filter_bind_address: ""
 docker_port_filter_host_port: 0
 docker_port_filter_container_port: 0
 docker_port_filter_allowed_sources: []
+# true when the container's config holds a secret (its info is read to compare ports).
+docker_port_filter_container_info_no_log: false
 
 # Derived; not meant to be overridden.
 docker_port_filter_unit: "{{ docker_port_filter_name }}-firewall.service"

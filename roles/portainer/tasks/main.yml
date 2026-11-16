@@ -16,6 +16,16 @@
       addresses or CIDRs, not empty when the bind address is not loopback.
     quiet: true
 
+# Checked apart, without echoing the value: a bcrypt hash ($2a$/$2b$/$2y$, cost,
+# 53 characters), or "" for no hash.
+- name: Validate the admin password hash
+  ansible.builtin.assert:
+    that: >-
+      portainer_admin_password_hash | length == 0
+      or portainer_admin_password_hash is match('^[$]2[aby][$][0-9]{2}[$][./A-Za-z0-9]{53}$')
+    fail_msg: portainer_admin_password_hash must be "" or a bcrypt hash (see the role README).
+    quiet: true
+
 # community.docker talks to the Docker API through python3-requests.
 - name: Install the Python library used by community.docker
   ansible.builtin.apt:
@@ -28,9 +38,11 @@
     state: present
 
 # A fresh instance has no admin: its setup page (protected by a one-time token
-# printed in the container log) must never be reachable from the LAN. LAN
-# exposure is therefore refused until the running container reports an admin:
-# GET /api/users/admin/check answers 204 when one exists, 404 when not.
+# printed in the container log) must never be reachable from the LAN. Without a
+# password hash, LAN exposure is refused until the running container reports an
+# admin: GET /api/users/admin/check answers 204 when one exists, 404 when not.
+# With a hash, Portainer creates the admin at start (--admin-password) before it
+# serves anything; the check after the container start below enforces it.
 - name: Check that the Portainer admin account exists before LAN exposure
   ansible.builtin.uri:
     url: "{{ portainer_local_url }}/api/users/admin/check"
@@ -43,11 +55,14 @@
 
 - name: Refuse LAN exposure without an admin account
   ansible.builtin.assert:
-    that: portainer_admin_check.status | default(-1) == 204
+    that: >-
+      portainer_admin_check.status | default(-1) == 204
+      or portainer_admin_password_hash | length > 0
     fail_msg: >-
       Portainer at {{ portainer_local_url }} has no admin account yet (or does not
-      answer: HTTP {{ portainer_admin_check.status | default('n/a') }}). Run the role
-      with portainer_bind_address 127.0.0.1 first, create the admin at
+      answer: HTTP {{ portainer_admin_check.status | default('n/a') }}) and no
+      portainer_admin_password_hash is set. Set the hash in the vault, or run the
+      role with portainer_bind_address 127.0.0.1 first and create the admin at
       https://127.0.0.1:{{ portainer_host_port }}, then expose it (see the role README).
     quiet: true
   when: portainer_lan_exposed | bool
@@ -67,6 +82,8 @@
     docker_port_filter_host_port: "{{ portainer_host_port }}"
     docker_port_filter_container_port: "{{ portainer_container_port }}"
     docker_port_filter_allowed_sources: "{{ portainer_allowed_sources }}"
+    # The container's Args hold the admin password hash.
+    docker_port_filter_container_info_no_log: true
   when: portainer_lan_exposed | bool
 
 # The documented CE install mounts the Docker socket and a data volume, nothing
@@ -74,6 +91,11 @@
 # --http-disabled: HTTPS only, no HTTP listener on 9000. Port 8000 (Edge agent
 # tunnel) is not published. unless-stopped rather than upstream's `always`, like
 # open_webui: a `docker stop` (port change, emergency) survives a Docker restart.
+# --admin-password takes a bcrypt hash and only acts while no admin exists
+# (--admin-password-file would need the plaintext password in a file). The hash
+# stays in the container's Args (docker inspect): only root and the docker group
+# can read them, and they can read Portainer's database anyway. no_log keeps it
+# out of Ansible output and --diff.
 - name: Run the Portainer container
   community.docker.docker_container:
     name: "{{ portainer_container_name }}"
@@ -82,8 +104,10 @@
     state: started
     restart_policy: unless-stopped
     container_default_behavior: no_defaults
-    command:
-      - --http-disabled
+    command: >-
+      {{ ['--http-disabled']
+         + (['--admin-password', portainer_admin_password_hash]
+            if portainer_admin_password_hash | length > 0 else []) }}
     published_ports:
       - "{{ portainer_bind_address }}:{{ portainer_host_port }}:{{ portainer_container_port }}"
     mounts:
@@ -94,6 +118,7 @@
         source: "{{ portainer_volume_name }}"
         target: /data
   register: portainer_container
+  no_log: "{{ portainer_admin_password_hash | length > 0 }}"
 
 # The image has no shell or HTTP client, so no Docker HEALTHCHECK can be
 # defined; the run waits on the public status endpoint from the host instead, so a
@@ -119,6 +144,39 @@
       expected {{ portainer_version }}.
     quiet: true
   when: not ansible_check_mode
+
+# With a hash, exposure did not wait for the admin: prove it exists now. If not,
+# stop the container (unless-stopped keeps it stopped) and fail.
+- name: Check that the Portainer admin account exists after start
+  ansible.builtin.uri:
+    url: "{{ portainer_local_url }}/api/users/admin/check"
+    validate_certs: false
+    status_code: [204, 404]
+  register: portainer_admin_check_after
+  failed_when: false
+  when:
+    - portainer_lan_exposed | bool
+    - not ansible_check_mode
+
+- name: Stop an exposed Portainer that has no admin account
+  ansible.builtin.command: "docker stop {{ portainer_container_name }}"
+  when:
+    - portainer_lan_exposed | bool
+    - not ansible_check_mode
+    - portainer_admin_check_after.status | default(-1) != 204
+
+- name: Refuse an exposed Portainer without an admin account
+  ansible.builtin.assert:
+    that: portainer_admin_check_after.status | default(-1) == 204
+    fail_msg: >-
+      Portainer published on {{ portainer_bind_address }}:{{ portainer_host_port }}
+      reports no admin account (HTTP {{ portainer_admin_check_after.status | default('n/a') }}):
+      the container was stopped. Check portainer_admin_password_hash and the
+      container log (docker logs portainer).
+    quiet: true
+  when:
+    - portainer_lan_exposed | bool
+    - not ansible_check_mode
 
 # After the container: the port is back on loopback before the filter goes away.
 - name: Remove the LAN filter when the port is on loopback

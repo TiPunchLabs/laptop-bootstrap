@@ -9,12 +9,12 @@ Last review: 2026-11-16.
 ## In progress
 
 ### `portainer.internal` (mission `2026-11-16-portainer-local`)
-- Status: role `portainer` (2.45.3 LTS, `127.0.0.1:9443`) and the shared
-  `docker_port_filter` are on branch `feat/portainer-local`; applied on the laptop
-  loopback-only.
-- Next step: decision D1 (admin bootstrap), admin creation, then uncomment the two
-  `portainer_*` lines in `group_vars/all/vars.yml` and rerun `make play-portainer`;
-  homelab Pi-hole + Caddy MR (step S3), deployment after D2.
+- Status: role `portainer` (2.45.3 LTS) and the shared `docker_port_filter` are on
+  branch `feat/portainer-local`; D1 implemented (admin from the vault bcrypt hash);
+  the laptop runs it loopback-only, without admin, until the owner's apply.
+- Next step: owner adds `vault_portainer_admin_password_hash` and runs
+  `make play-portainer` (LAN for 192.168.10.70); homelab Pi-hole + Caddy MR (step
+  S3), deployment after D2.
   Source: `docs/missions/2026-11-16-portainer-local/`.
 
 ## Cleanup

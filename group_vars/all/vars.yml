@@ -12,6 +12,9 @@ git_user_name: "{{ vault_git_user_name | default('myname') }}"
 internal_dns_servers: "{{ vault_internal_dns_servers | default(['127.0.0.53']) }}"
 internal_dns_domains: "{{ vault_internal_dns_domains | default(['~invalid']) }}"
 syncthing_gui_password: "{{ vault_syncthing_gui_password | default('CHANGEME-SET-IN-VAULT') }}"
+# bcrypt hash only, never the password. "" = no hash (the role then requires the
+# admin to be created by hand before any LAN exposure).
+portainer_admin_password_hash: "{{ vault_portainer_admin_password_hash | default('') }}"
 
 # Open WebUI behind the homelab reverse proxy (https://openwebui.internal, Caddy
 # on 192.168.10.70). 0.0.0.0 publishes IPv4 only and does not depend on the Wi-Fi
@@ -24,9 +27,9 @@ open_webui_url: "https://openwebui.internal"
 # Portainer behind the homelab reverse proxy (https://portainer.internal, Caddy on
 # 192.168.10.70, upstream https://<laptop>:9443). Same reasoning as Open WebUI:
 # 0.0.0.0 = IPv4 only, no boot-time DHCP dependency, DOCKER-USER filter admits only
-# the Caddy host. The role refuses this until the admin account exists (create it
-# on https://127.0.0.1:9443 first). Kept commented until mission
-# 2026-11-16-portainer-local records decision D1 (admin bootstrap); until then the
-# role default keeps Portainer on 127.0.0.1:9443. See roles/portainer/README.md.
-# portainer_bind_address: "0.0.0.0"
-# portainer_allowed_sources: ["192.168.10.70"]
+# the Caddy host. The admin comes from vault_portainer_admin_password_hash (alias
+# above, decision D1 of mission 2026-11-16-portainer-local); without it the role
+# refuses this exposure until an admin exists. Back to loopback-only: drop these
+# two lines. See roles/portainer/README.md.
+portainer_bind_address: "0.0.0.0"
+portainer_allowed_sources: ["192.168.10.70"]

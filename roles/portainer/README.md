@@ -28,26 +28,69 @@ version (up to `portainer_health_timeout`, 120 s). A second run reports `changed
 
 Open <https://127.0.0.1:9443> (self-signed certificate: accept the browser warning).
 
-## First start: the admin account
+## The admin account
 
-A new instance has no administrator. Since 2.39.4/2.43, Portainer asks for a
-**setup token** (one-time, printed in the container log) before it accepts the
-admin password, and stops the setup service if the admin is not created within
-**5 minutes** of the first start:
+### From the vault (this laptop)
+
+`portainer_admin_password_hash` holds the **bcrypt hash** of the admin password
+(user `admin`). On this laptop it is the alias of
+`vault_portainer_admin_password_hash` in the encrypted
+`group_vars/all/vault/main.yml` (`group_vars/all/vars.yml`). The role passes it as
+`--admin-password <hash>`: Portainer creates the admin **before** it starts its
+HTTPS server (log: `created admin user with the given password`), so the instance
+never serves a setup page and needs no setup token. `--admin-password-file` is not
+used: it takes the plaintext password in a file.
+
+Create the hash without the password on the command line or in the shell history
+(`htpasswd` from `apache2-utils` prompts twice, without echo):
+
+```bash
+( umask 077; htpasswd -nBC 12 '' | tr -d ':\n' > "$XDG_RUNTIME_DIR/portainer-hash" )
+make vault-edit   # add: vault_portainer_admin_password_hash: '<content of that file>' (single quotes)
+shred -u "$XDG_RUNTIME_DIR/portainer-hash"
+```
+
+Behaviour:
+
+| Instance state | What the hash does |
+|---|---|
+| New volume | Admin created at first start, then HTTPS starts |
+| Existing volume without admin (setup never done) | The container is recreated with the flag (its arguments changed) and the admin is created at start |
+| Existing admin | Ignored. Portainer logs `instance already has an administrator user defined, skipping admin password related flags`; the current password stays valid |
+
+The hash only bootstraps the admin. Change the password later in the UI; changing
+the vault value afterwards only recreates the container (its arguments change),
+it does not change the password.
+
+Where the hash is visible: the container's arguments (`docker inspect portainer`),
+readable by root and the `docker` group, who can read Portainer's database (same
+hash) anyway. Do not paste `docker inspect portainer` output anywhere. Ansible
+never prints it: the container task and the filter's container probe are `no_log`
+(also under `-vvv` and `--check --diff`), and the format check does not echo the value.
+
+### By hand (no hash)
+
+With `portainer_admin_password_hash: ""` (the role default) a new instance has no
+administrator. Portainer then asks for a **setup token** (one-time, printed in the
+container log, since 2.39.4/2.43) and stops its setup service if the admin is not
+created within **5 minutes** of the start:
 
 ```bash
 docker logs portainer 2>&1 | grep -o 'setup_token=[^ ]*'   # one-time token, valid until the admin exists
-# "timed out for security purposes": restart, you get another 5 minutes
-docker restart portainer
+docker restart portainer   # after "timed out for security purposes": another 5 minutes
 ```
 
-Create the admin from this laptop, on loopback, then (and only then) expose the
-port to the LAN. The role enforces that order: with a non-loopback
-`portainer_bind_address` it asks the running container
-`GET /api/users/admin/check` and **fails before touching the firewall or the
-container** unless it answers 204 (admin exists). So the setup page is never
-published beyond loopback. No credential is set by the role, stored in the
-repository or the vault, or printed by Ansible.
+Create the admin on <https://127.0.0.1:9443>, then expose the port.
+
+### Never exposed without an admin
+
+With a non-loopback `portainer_bind_address`:
+
+- before the firewall or the container is touched, the role asks the running
+  container `GET /api/users/admin/check` and fails unless it answers 204 (admin
+  exists) **or** a hash is set;
+- after the container starts, it asks again; anything but 204 stops the container
+  (it stays stopped, `unless-stopped`) and fails the run.
 
 ## Variables
 
@@ -60,11 +103,13 @@ repository or the vault, or printed by Ansible.
 | `portainer_bind_address` | `127.0.0.1` | Host IPv4 address the port is published on. Not `127.*` → admin check + LAN filter |
 | `portainer_host_port` | `9443` | Host port (container port 9443, HTTPS) |
 | `portainer_allowed_sources` | `[]` | IPv4 addresses/CIDRs allowed to reach the port when it is not on loopback (required then) |
+| `portainer_admin_password_hash` | `""` | bcrypt hash of the `admin` password (secret, vault only), see [The admin account](#the-admin-account) |
 | `portainer_health_timeout` | `120` | Seconds the run waits for the API |
 
 Fixed by the role: restart policy `unless-stopped` (upstream uses `always`; with
 `unless-stopped` a `docker stop` survives a Docker restart, which the port-change
-and emergency procedures rely on); command `--http-disabled`; mounts below.
+and emergency procedures rely on); command `--http-disabled` (plus
+`--admin-password` when a hash is set); mounts below.
 
 ## Ports and protocol
 
@@ -97,8 +142,9 @@ login is therefore what stands between the network and root. Mitigations:
 
 - Loopback by default; LAN exposure only by explicit variables, and only for
   the listed sources (the homelab Caddy), enforced in DOCKER-USER.
-- The setup page is never exposed (admin check above), and needs the log-printed
-  setup token anyway.
+- The setup page is never exposed: admin from the vault hash at first start, and
+  admin checks before and after the container start (above). It also needs the
+  log-printed setup token.
 - HTTPS on every hop: browser → Caddy (internal CA), Caddy → laptop (9443).
 - HTTP 9000 and the Edge tunnel 8000 are not published.
 - Use a strong admin password; do not create extra users without need.
@@ -122,7 +168,8 @@ make play-portainer                                      # second run: changed=0
 ## LAN access through a reverse proxy
 
 For `https://portainer.internal` (homelab Caddy `192.168.10.70`, upstream
-`https://<laptop IPv4>:9443`), after the admin exists:
+`https://<laptop IPv4>:9443`), with the vault hash set or the admin created by hand
+(this laptop's `group_vars/all/vars.yml` has these lines):
 
 ```yaml
 # group_vars/all/vars.yml

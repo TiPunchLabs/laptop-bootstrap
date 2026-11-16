@@ -34,6 +34,7 @@
   community.docker.docker_container_info:
     name: "{{ docker_port_filter_container_name }}"
   register: docker_port_filter_current
+  no_log: "{{ docker_port_filter_container_info_no_log }}"
 
 # docker stop, not docker_container state=stopped: with only a name, the module
 # compares against its defaults and recreates the container (seen on the VM).

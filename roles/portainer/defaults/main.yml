@@ -23,5 +23,11 @@ portainer_host_port: 9443
 # e.g. a reverse proxy. Required in that case, ignored on loopback.
 portainer_allowed_sources: []
 
+# bcrypt hash of the admin password, "" = none. Secret: set it only in the vault
+# (vault_portainer_admin_password_hash, aliased in group_vars/all/vars.yml), never
+# here. Portainer uses it only while no admin exists (first start); afterwards the
+# password is changed in the UI and this value no longer matters.
+portainer_admin_password_hash: ""
+
 # Seconds the run waits for the API to answer after a (re)start.
 portainer_health_timeout: 120
