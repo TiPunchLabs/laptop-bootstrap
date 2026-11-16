@@ -25,6 +25,8 @@ mise is **not** a universal package manager here. Anything that needs system int
 │   ├── cli_tools/        # mise install + config + managed ~/.bashrc block
 │   ├── cleanup_legacy/   # removes pre-mise installs (destructive, see below)
 │   ├── open_webui/       # Open WebUI as a Docker container (pinned image, named volume)
+│   ├── portainer/        # Portainer CE as a Docker container (pinned LTS image, named volume)
+│   ├── docker_port_filter/  # shared DOCKER-USER source filter for a published container port
 │   └── devtools · docker · git · libvirt · obsidian · postman_cli · syncthing · vagrant
 ├── test/smoke/           # Vagrant + libvirt VM to replay the playbook safely
 ├── uninstall-opera.yml   # one-shot maintenance playbook
@@ -110,6 +112,7 @@ make play TAGS=<tag>         # second run of the same scope: expect changed=0
 | `update` | `apt update` + `apt upgrade` |
 | `docker`, `git`, `devtools`, `postman-cli`, `obsidian`, `syncthing`, `libvirt`, `vagrant` | The role of the same name (`vagrant` pulls in `libvirt`) |
 | `open-webui` | `open_webui` (pulls in `docker`): Open WebUI container on <http://127.0.0.1:3030> (+ LAN filter when not on loopback), see [its README](roles/open_webui/README.md) |
+| `portainer` | `portainer` (pulls in `docker`): Portainer CE container on <https://127.0.0.1:9443> (+ LAN filter when not on loopback, only once the admin exists), see [its README](roles/portainer/README.md) |
 | `internal-dns`, `sudo`, `journald` | The matching systemd/sudo drop-in from `bootstrap` |
 
 Base packages, vendor apps (`software.yml`), hostname and `/etc/hosts` have no tag: they only run in a full, untagged run.
@@ -183,6 +186,10 @@ pnpm bin -g                  # ~/.local/share/pnpm/bin, listed in PATH after /us
 ### Open WebUI
 
 `make play-open-webui` runs Open WebUI `v0.13.0` in Docker, published on `127.0.0.1:3030` by default (this laptop: `0.0.0.0:3030`, filtered to the homelab Caddy), with its data in the `open-webui` volume and the host's Ollama as backend. The first account created becomes the administrator. Updates are manual (bump `open_webui_version`), and **an older tag does not undo database migrations**: back up the volume before every update. Details, backup/restore and the `openwebui.internal` reverse-proxy setup: [`roles/open_webui/README.md`](roles/open_webui/README.md).
+
+### Portainer
+
+`make play-portainer` runs Portainer CE `2.45.3` (LTS) in Docker, HTTPS on `127.0.0.1:9443` (self-signed certificate), with its data in the `portainer_data` volume and the Docker socket mounted (**root-equivalent**: see the role README). Create the admin from the laptop within 5 minutes of the first start (setup token in `docker logs portainer`); the role refuses a LAN bind until an admin exists. Updates are manual (bump `portainer_version`); back up the volume first. Details and the `portainer.internal` reverse-proxy setup: [`roles/portainer/README.md`](roles/portainer/README.md).
 
 ### Other one-time notes
 

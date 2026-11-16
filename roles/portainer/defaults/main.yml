@@ -1,0 +1,27 @@
+---
+# Official Community Edition image, pinned to an LTS release (2.45 LTS line).
+# Never lts, sts or latest (the role asserts X.Y.Z). Bump deliberately; see the
+# role README → Updating.
+portainer_image: portainer/portainer-ce
+portainer_version: "2.45.3"
+
+portainer_container_name: portainer
+# Upstream's volume name. Holds the database, the encryption key and the
+# self-signed TLS certificate.
+portainer_volume_name: portainer_data
+
+# IPv4 only. Loopback (default): the UI is reachable from this laptop, not from
+# the LAN. Any other address (0.0.0.0 = every interface) publishes the port beyond
+# the laptop; the role then requires an existing admin account and installs a
+# DOCKER-USER filter first, which only lets portainer_allowed_sources in.
+# Only the HTTPS UI port is published (container 9443); HTTP 9000 is disabled and
+# the Edge tunnel port 8000 is not published.
+portainer_bind_address: "127.0.0.1"
+portainer_host_port: 9443
+
+# IPv4 addresses or CIDRs allowed to reach the port when it is not on loopback,
+# e.g. a reverse proxy. Required in that case, ignored on loopback.
+portainer_allowed_sources: []
+
+# Seconds the run waits for the API to answer after a (re)start.
+portainer_health_timeout: 120

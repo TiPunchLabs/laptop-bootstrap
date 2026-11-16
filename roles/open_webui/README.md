@@ -8,7 +8,9 @@ host. Optionally published to the LAN for a reverse proxy, behind a source filte
 
 Managed with `community.docker` (`docker_volume`, `docker_container`), shipped by
 the `ansible` package in the project venv. No compose file. The only systemd unit is
-the LAN filter, installed only when the port leaves loopback.
+the LAN filter, installed only when the port leaves loopback. The filter's tasks and
+templates live in the shared [`docker_port_filter`](../docker_port_filter/README.md)
+role, also used by `portainer`; this README stays the reference for how it works.
 
 ## Prerequisites
 
@@ -280,6 +282,10 @@ systemctl status open-webui-firewall.service   # why the script failed
 sudo /usr/local/sbin/open-webui-firewall        # fix, rerun until it exits 0
 sudo systemctl start docker
 ```
+
+Other filtered ports (`portainer`'s `PORTAINER-INGRESS`) have their own chain and
+hook in `DOCKER-USER`. Each chain returns what is not its own mapping, so the
+filters do not interact; removing one leaves the others.
 
 Limits: the filter trusts the source address (anyone on the LAN who can spoof
 `192.168.10.70` passes it, then still meets Open WebUI's login). It identifies the

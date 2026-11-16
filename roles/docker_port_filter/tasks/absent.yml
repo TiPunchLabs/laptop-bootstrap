@@ -1,0 +1,51 @@
+---
+# Loopback mode: remove what present.yml installed. Leaves every other
+# DOCKER-USER rule (other callers' filters included) alone.
+- name: Look for the LAN filter unit
+  ansible.builtin.stat:
+    path: "/etc/systemd/system/{{ docker_port_filter_unit }}"
+  register: docker_port_filter_unit_stat
+
+# Disable first: it removes Docker's Requires= link (systemctl reloads itself),
+# so stopping the unit afterwards does not stop Docker.
+- name: Disable the LAN filter unit
+  ansible.builtin.systemd_service:
+    name: "{{ docker_port_filter_unit }}"
+    enabled: false
+  when: docker_port_filter_unit_stat.stat.exists
+
+- name: Stop the LAN filter unit
+  ansible.builtin.systemd_service:
+    name: "{{ docker_port_filter_unit }}"
+    state: stopped
+  when: docker_port_filter_unit_stat.stat.exists
+
+- name: Remove the LAN filter unit and script
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - "/etc/systemd/system/{{ docker_port_filter_unit }}"
+    - "{{ docker_port_filter_script }}"
+
+- name: Reload systemd after removing the unit
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  when: docker_port_filter_unit_stat.stat.exists
+
+- name: Remove the LAN filter rules
+  ansible.builtin.shell: |
+    set -eu
+    changed=0
+    while iptables -w -C DOCKER-USER {{ docker_port_filter_jump }} 2>/dev/null; do
+      iptables -w -D DOCKER-USER {{ docker_port_filter_jump }}
+      changed=1
+    done
+    if iptables -w -n -L {{ docker_port_filter_chain }} >/dev/null 2>&1; then
+      iptables -w -F {{ docker_port_filter_chain }}
+      iptables -w -X {{ docker_port_filter_chain }}
+      changed=1
+    fi
+    echo "changed=$changed"
+  register: docker_port_filter_cleanup
+  changed_when: "'changed=1' in docker_port_filter_cleanup.stdout"

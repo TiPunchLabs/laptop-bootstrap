@@ -20,3 +20,13 @@ syncthing_gui_password: "{{ vault_syncthing_gui_password | default('CHANGEME-SET
 open_webui_bind_address: "0.0.0.0"
 open_webui_allowed_sources: ["192.168.10.70"]
 open_webui_url: "https://openwebui.internal"
+
+# Portainer behind the homelab reverse proxy (https://portainer.internal, Caddy on
+# 192.168.10.70, upstream https://<laptop>:9443). Same reasoning as Open WebUI:
+# 0.0.0.0 = IPv4 only, no boot-time DHCP dependency, DOCKER-USER filter admits only
+# the Caddy host. The role refuses this until the admin account exists (create it
+# on https://127.0.0.1:9443 first). Kept commented until mission
+# 2026-11-16-portainer-local records decision D1 (admin bootstrap); until then the
+# role default keeps Portainer on 127.0.0.1:9443. See roles/portainer/README.md.
+# portainer_bind_address: "0.0.0.0"
+# portainer_allowed_sources: ["192.168.10.70"]

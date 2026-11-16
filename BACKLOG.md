@@ -4,11 +4,18 @@ Open work, cleanup and deferred improvements. GitHub issues are disabled on this
 repo, so this file is the single place to track them. Remove an entry once it is
 done (git history keeps the trace).
 
-Last review: 2026-11-15.
+Last review: 2026-11-16.
 
 ## In progress
 
-Nothing in progress.
+### `portainer.internal` (mission `2026-11-16-portainer-local`)
+- Status: role `portainer` (2.45.3 LTS, `127.0.0.1:9443`) and the shared
+  `docker_port_filter` are on branch `feat/portainer-local`; applied on the laptop
+  loopback-only.
+- Next step: decision D1 (admin bootstrap), admin creation, then uncomment the two
+  `portainer_*` lines in `group_vars/all/vars.yml` and rerun `make play-portainer`;
+  homelab Pi-hole + Caddy MR (step S3), deployment after D2.
+  Source: `docs/missions/2026-11-16-portainer-local/`.
 
 ## Cleanup
 
@@ -121,6 +128,10 @@ Optional; none of these blocks anything.
 - Decision D1 of `docs/missions/2026-11-07-remove-portainer/report.md`, still
   open: `roles/portainer`, `deploy_portainer: true` on its main. Its branch
   `feature/postgresql` (role never merged) stays until the owner deletes it.
+- Since 2026-11-16 this repo's `portainer` role manages Portainer on the laptop
+  (container `portainer`). Running that repo's `deploy.yml` would now conflict
+  with it (same container name, a second server, an agent on `0.0.0.0:9001`):
+  removing the role there is no longer optional cleanup.
 
 ### Ollama listens on every interface
 - `ollama.service` drop-in sets `OLLAMA_HOST=0.0.0.0`, so the unauthenticated

@@ -1,0 +1,27 @@
+---
+# Internal helper, imported by the container roles (open_webui, portainer) with
+# tasks_from: present (before the container is published off loopback) or absent
+# (after it is back on loopback). The caller passes every value below except the
+# derived names. See README.md.
+
+# Short name: unit <name>-firewall.service, script /usr/local/sbin/<name>-firewall.
+docker_port_filter_name: ""
+# Dedicated iptables chain, jumped to from DOCKER-USER. Unique per caller.
+docker_port_filter_chain: ""
+# Human name in the rendered files and messages, and the calling role.
+docker_port_filter_label: ""
+docker_port_filter_owner_role: ""
+
+docker_port_filter_container_name: ""
+docker_port_filter_bind_address: ""
+docker_port_filter_host_port: 0
+docker_port_filter_container_port: 0
+docker_port_filter_allowed_sources: []
+
+# Derived; not meant to be overridden.
+docker_port_filter_unit: "{{ docker_port_filter_name }}-firewall.service"
+docker_port_filter_script: "/usr/local/sbin/{{ docker_port_filter_name }}-firewall"
+# Jump from DOCKER-USER: only packets Docker port-forwarded (DNAT), client to
+# container direction. Replies (REPLY direction) never enter the chain. Constant,
+# so a port or source change only rewrites the chain.
+docker_port_filter_jump: -m conntrack --ctstate DNAT --ctdir ORIGINAL -j {{ docker_port_filter_chain }}
