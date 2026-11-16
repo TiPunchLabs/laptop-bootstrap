@@ -73,12 +73,15 @@
   when: docker_port_filter_unit_file is changed
 
 # Never `restarted`: Docker requires the unit, so restarting it restarts Docker.
+# Under --check a new or changed unit file is not written, so systemd cannot
+# know it yet: skip instead of failing the preview.
 - name: Enable the LAN filter unit
   ansible.builtin.systemd_service:
     name: "{{ docker_port_filter_unit }}"
     enabled: true
     daemon_reload: "{{ docker_port_filter_unit_file is changed }}"
     state: started
+  when: not (ansible_check_mode and docker_port_filter_unit_file is changed)
 
 - name: Check that the LAN filter rules are in place
   ansible.builtin.shell: >-
