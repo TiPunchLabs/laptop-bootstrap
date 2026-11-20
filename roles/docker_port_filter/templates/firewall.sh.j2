@@ -1,0 +1,28 @@
+#!/bin/sh
+#
+# Ansible managed (role {{ docker_port_filter_owner_role }})
+#
+# Lets only the allowed sources reach the {{ docker_port_filter_label }} port that Docker publishes on
+# {{ docker_port_filter_bind_address }}:{{ docker_port_filter_host_port }}. Run by {{ docker_port_filter_unit }} before
+# docker.service starts and again whenever it restarts. Idempotent.
+set -eu
+
+# Docker keeps an existing DOCKER-USER chain: creating it here puts the filter in
+# place before Docker publishes the port at boot.
+iptables -w -n -L DOCKER-USER >/dev/null 2>&1 || iptables -w -N DOCKER-USER
+
+# A declared chain is flushed and refilled in the same transaction: no window
+# without the DROP rule. The DROP matches the port mapping itself (original
+# destination port {{ docker_port_filter_host_port }}, DNATed to container port {{ docker_port_filter_container_port }}).
+iptables-restore --noflush <<'RULES'
+*filter
+:{{ docker_port_filter_chain }} - [0:0]
+{% for source in docker_port_filter_allowed_sources %}
+-A {{ docker_port_filter_chain }} -s {{ source }} -j RETURN
+{% endfor %}
+-A {{ docker_port_filter_chain }} -p tcp -m conntrack --ctorigdstport {{ docker_port_filter_host_port }} --ctreplsrcport {{ docker_port_filter_container_port }} -j DROP
+COMMIT
+RULES
+
+iptables -w -C DOCKER-USER {{ docker_port_filter_jump }} 2>/dev/null \
+  || iptables -w -I DOCKER-USER 1 {{ docker_port_filter_jump }}

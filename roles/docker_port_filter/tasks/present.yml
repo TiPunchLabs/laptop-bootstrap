@@ -1,0 +1,101 @@
+---
+- name: Validate the port filter parameters
+  ansible.builtin.assert:
+    that:
+      - docker_port_filter_name is match('^[a-z0-9][a-z0-9-]*$')
+      - docker_port_filter_chain is match('^[A-Z0-9][A-Z0-9-]*$')
+      - docker_port_filter_allowed_sources | length > 0
+    fail_msg: >-
+      docker_port_filter needs a lowercase name, an uppercase chain name and at
+      least one allowed source.
+    quiet: true
+
+# Docker publishes ports with its own NAT rules, which bypass ufw and INPUT. The
+# filter sits in DOCKER-USER, which only exists with the iptables backend.
+- name: Read the Docker firewall backend
+  ansible.builtin.command: docker info --format "{% raw %}{{ .FirewallBackend.Driver }}{% endraw %}"
+  register: docker_port_filter_backend
+  changed_when: false
+  check_mode: false
+
+- name: Require the iptables firewall backend
+  ansible.builtin.assert:
+    that: docker_port_filter_backend.stdout == 'iptables'
+    fail_msg: >-
+      Docker firewall backend is '{{ docker_port_filter_backend.stdout }}'. The
+      {{ docker_port_filter_label }} LAN filter uses the DOCKER-USER iptables chain;
+      keep its bind address on 127.0.0.1 with another backend.
+    quiet: true
+
+# The DROP rule matches the host port. When the port changes, the running
+# container still publishes the old one: stop it before the rules change, so the
+# old port is never published unfiltered (stopped stays stopped if the run fails).
+- name: Read the running container
+  community.docker.docker_container_info:
+    name: "{{ docker_port_filter_container_name }}"
+  register: docker_port_filter_current
+  no_log: "{{ docker_port_filter_container_info_no_log }}"
+
+# docker stop, not docker_container state=stopped: with only a name, the module
+# compares against its defaults and recreates the container (seen on the VM).
+- name: Stop the container before its host port changes
+  ansible.builtin.command: "docker stop {{ docker_port_filter_container_name }}"
+  when:
+    - docker_port_filter_current.exists
+    - (docker_port_filter_current.container.HostConfig.PortBindings[(docker_port_filter_container_port | string) ~ '/tcp']
+       | default([], true) | map(attribute='HostPort')
+       | reject('equalto', docker_port_filter_host_port | string) | list | length) > 0
+
+- name: Install the LAN filter script
+  ansible.builtin.template:
+    src: firewall.sh.j2
+    dest: "{{ docker_port_filter_script }}"
+    owner: root
+    group: root
+    mode: "0755"
+  register: docker_port_filter_script_file
+
+- name: Install the LAN filter unit
+  ansible.builtin.template:
+    src: firewall.service.j2
+    dest: "/etc/systemd/system/{{ docker_port_filter_unit }}"
+    owner: root
+    group: root
+    mode: "0644"
+  register: docker_port_filter_unit_file
+
+# `enabled: true` does not refresh the links of an already enabled unit whose
+# [Install] section changed; `systemctl reenable` does (the systemd module has no
+# reenable) and starts or stops nothing. Not a handler: the links must be right
+# before the container is published.
+- name: Refresh the LAN filter unit links  # noqa: no-handler command-instead-of-module
+  ansible.builtin.command: "systemctl reenable {{ docker_port_filter_unit }}"
+  when: docker_port_filter_unit_file is changed
+
+# Never `restarted`: Docker requires the unit, so restarting it restarts Docker.
+# Under --check a new or changed unit file is not written, so systemd cannot
+# know it yet: skip instead of failing the preview.
+- name: Enable the LAN filter unit
+  ansible.builtin.systemd_service:
+    name: "{{ docker_port_filter_unit }}"
+    enabled: true
+    daemon_reload: "{{ docker_port_filter_unit_file is changed }}"
+    state: started
+  when: not (ansible_check_mode and docker_port_filter_unit_file is changed)
+
+- name: Check that the LAN filter rules are in place
+  ansible.builtin.shell: >-
+    iptables -w -C DOCKER-USER {{ docker_port_filter_jump }} &&
+    iptables -w -C {{ docker_port_filter_chain }} -p tcp -m conntrack
+    --ctorigdstport {{ docker_port_filter_host_port }} --ctreplsrcport {{ docker_port_filter_container_port }} -j DROP
+  register: docker_port_filter_probe
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# The script is idempotent and replaces the chain in one transaction.
+- name: Apply the LAN filter rules
+  ansible.builtin.command: "{{ docker_port_filter_script }}"
+  when: >-
+    docker_port_filter_script_file is changed
+    or docker_port_filter_probe.rc != 0

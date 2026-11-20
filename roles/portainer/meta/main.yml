@@ -1,0 +1,19 @@
+---
+galaxy_info:
+  author: xgueret
+  description: Run Portainer CE as a Docker container (pinned LTS image, named volume, loopback or filtered LAN port)
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - jammy
+        - noble
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+
+# Docker Engine is a hard prerequisite: `--tags portainer` installs or checks it first.
+dependencies:
+  - role: docker

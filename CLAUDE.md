@@ -68,7 +68,8 @@ playbook.yml ── hosts: local, become: true
         ├─ loop bootstrap_software_list → install_software.yml      (PATTERN A, untagged)
         │         keyring via role apt_keyring, deb822 source, one batched apt install
         └─ include_role, one tag each:                               (PATTERN B)
-             libvirt · vagrant · git · docker · open_webui (open-webui) · devtools ·
+             libvirt · vagrant · git · docker · open_webui (open-webui) ·
+             portainer (portainer) · devtools ·
              postman_cli (postman-cli) ·
              obsidian · syncthing · cleanup_legacy (cleanup-legacy, cli-tools) ·
              cli_tools (cli-tools, mise)
@@ -97,6 +98,15 @@ keyring under `/usr/share/keyrings/` is never deleted (README → APT keyrings).
   A non-loopback bind installs a `DOCKER-USER` filter (unit `open-webui-firewall`);
   this laptop publishes `0.0.0.0:3030` for the homelab Caddy only.
   Never touches the `brain-rag_open-webui` volume. Ops: `roles/open_webui/README.md`.
+- `portainer`: pinned `portainer/portainer-ce:X.Y.Z` (LTS), HTTPS `127.0.0.1:9443` by
+  default, Docker socket mounted (root-equivalent), depends on `docker`. Admin from
+  `vault_portainer_admin_password_hash` (bcrypt), given only to a one-shot, unpublished
+  `portainer-bootstrap` container (`no_log`); the real container never carries it. A
+  non-loopback bind needs the mounted volume proven to have an admin, then installs its own filter (unit `portainer-firewall`); this laptop publishes
+  `0.0.0.0:9443` for the homelab Caddy only. Ops: `roles/portainer/README.md`.
+- `docker_port_filter`: internal, imported by `open_webui` and `portainer`; one
+  DOCKER-USER chain + boot-time unit per caller. Templates must keep rendering the
+  laptop's existing `open-webui-firewall` files byte for byte.
 - `libvirt`, `vagrant` (depends on libvirt), `git`, `docker`, `cli_tools` (mise +
   marker-bounded `~/.bashrc` block), `cleanup_legacy` (destructive, see README).
 

@@ -31,7 +31,19 @@
 
 # Before the container: the filter must be in place when the port leaves loopback.
 - name: Filter LAN access to the published port
-  ansible.builtin.import_tasks: firewall.yml
+  ansible.builtin.import_role:
+    name: docker_port_filter
+    tasks_from: present
+  vars:
+    docker_port_filter_name: open-webui
+    docker_port_filter_chain: OPEN-WEBUI-INGRESS
+    docker_port_filter_label: Open WebUI
+    docker_port_filter_owner_role: open_webui
+    docker_port_filter_container_name: "{{ open_webui_container_name }}"
+    docker_port_filter_bind_address: "{{ open_webui_bind_address }}"
+    docker_port_filter_host_port: "{{ open_webui_host_port }}"
+    docker_port_filter_container_port: 8080
+    docker_port_filter_allowed_sources: "{{ open_webui_allowed_sources }}"
   when: open_webui_lan_exposed | bool
 
 # A version bump changes the image, so the container is recreated with the same
@@ -71,5 +83,10 @@
 
 # After the container: the port is back on loopback before the filter goes away.
 - name: Remove the LAN filter when the port is on loopback
-  ansible.builtin.import_tasks: firewall_absent.yml
+  ansible.builtin.import_role:
+    name: docker_port_filter
+    tasks_from: absent
+  vars:
+    docker_port_filter_name: open-webui
+    docker_port_filter_chain: OPEN-WEBUI-INGRESS
   when: not open_webui_lan_exposed | bool

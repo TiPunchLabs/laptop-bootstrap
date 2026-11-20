@@ -1,0 +1,18 @@
+---
+galaxy_info:
+  author: xgueret
+  description: Filter LAN access to one Docker-published port (DOCKER-USER chain + boot-time systemd unit)
+  license: MIT
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - jammy
+        - noble
+    - name: Debian
+      versions:
+        - bookworm
+        - trixie
+
+# Docker itself comes from the caller's dependency on the docker role.
+dependencies: []

@@ -1,0 +1,5 @@
+---
+# Not an entry point: callers import tasks_from present or absent (see README.md).
+- name: Refuse a direct call to docker_port_filter
+  ansible.builtin.fail:
+    msg: Import docker_port_filter with tasks_from present or absent, not as a whole role.

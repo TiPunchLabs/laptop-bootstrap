@@ -1,0 +1,154 @@
+---
+# Establishes, before anything is published, whether the volume the Portainer
+# container will mount (portainer_volume_name) holds an admin account. Sets:
+#   portainer_admin_ready     true when that volume is proven to have an admin
+#   portainer_bootstrap_ran   true when a one-shot bootstrap container created it
+# The admin password hash is only ever given to the one-shot bootstrap container,
+# which publishes no port and is removed at once; the long-running container never
+# carries it. Every task that sees the hash or container facts is no_log.
+
+# Facts of the current container (Args of containers made by earlier versions of
+# this role may hold a hash).
+- name: Read the current Portainer container
+  community.docker.docker_container_info:
+    name: "{{ portainer_container_name }}"
+  register: portainer_current
+  no_log: true
+
+# Ready only if the running container mounts the desired volume on /data: an
+# admin on another volume (e.g. after portainer_volume_name changed) proves nothing.
+# Probed on the container's bridge address, independent of the published port.
+- name: Locate the running container on the desired volume
+  ansible.builtin.set_fact:
+    portainer_current_ip: >-
+      {{ (portainer_current.container.NetworkSettings.Networks | default({}, true)
+          | dict2items | map(attribute='value.IPAddress') | select | list + [''])
+         | first if portainer_current.exists else '' }}
+    portainer_current_on_volume: >-
+      {{ portainer_current.exists
+         and portainer_current.container.State.Running
+         and (portainer_current.container.Mounts | default([], true)
+              | selectattr('Type', 'equalto', 'volume')
+              | selectattr('Name', 'equalto', portainer_volume_name)
+              | selectattr('Destination', 'equalto', '/data') | list | length) > 0 }}
+
+- name: Ask the running container whether its volume has an admin
+  ansible.builtin.uri:
+    url: "https://{{ portainer_current_ip }}:{{ portainer_container_port }}/api/users/admin/check"
+    validate_certs: false
+    status_code: [204, 404]
+    timeout: 10
+  register: portainer_current_admin
+  failed_when: false
+  check_mode: false
+  when:
+    - portainer_current_on_volume | bool
+    - portainer_current_ip | length > 0
+
+- name: Record whether the desired volume has an admin
+  ansible.builtin.set_fact:
+    portainer_admin_ready: >-
+      {{ portainer_current_on_volume | bool
+         and portainer_current_admin.status | default(-1) == 204 }}
+    portainer_bootstrap_ran: false
+
+# Frozen before the block: a block's `when` is re-evaluated for its `always`
+# tasks, so it must not depend on facts the block itself changes.
+- name: Decide whether the admin bootstrap is needed
+  ansible.builtin.set_fact:
+    portainer_bootstrap_needed: >-
+      {{ portainer_admin_password_hash | length > 0 and not portainer_admin_ready | bool }}
+
+# A hash and no proven admin: create the admin on the desired volume with a
+# one-shot container (no published port, default bridge only), before the real
+# container is (re)created and published. Portainer creates the admin before it
+# starts serving; on a volume that already has one it logs that it skips the flag.
+- name: Bootstrap the Portainer admin on the data volume
+  when: portainer_bootstrap_needed | bool
+  block:
+    # BoltDB allows one process per volume: the current container must be stopped.
+    - name: Stop the current Portainer container before the bootstrap
+      ansible.builtin.command: "docker stop {{ portainer_container_name }}"
+      when:
+        - portainer_current.exists
+        - portainer_current.container.State.Running
+
+    - name: Start the one-shot admin bootstrap container
+      community.docker.docker_container:
+        name: "{{ portainer_container_name }}-bootstrap"
+        image: "{{ portainer_image }}:{{ portainer_version }}"
+        pull: missing
+        state: started
+        restart_policy: "no"
+        container_default_behavior: no_defaults
+        command:
+          - --http-disabled
+          - --admin-password
+          - "{{ portainer_admin_password_hash }}"
+        mounts:
+          - type: volume
+            source: "{{ portainer_volume_name }}"
+            target: /data
+      no_log: true
+
+    - name: Read the bootstrap container address
+      community.docker.docker_container_info:
+        name: "{{ portainer_container_name }}-bootstrap"
+      register: portainer_bootstrap_info
+      no_log: true
+      when: not ansible_check_mode
+
+    - name: Wait for the bootstrap container to report an admin
+      ansible.builtin.uri:
+        url: >-
+          https://{{ portainer_bootstrap_info.container.NetworkSettings.Networks
+          | dict2items | map(attribute='value.IPAddress') | select | first }}:{{ portainer_container_port }}/api/users/admin/check
+        validate_certs: false
+        status_code: [204, 404]
+        timeout: 10
+      register: portainer_bootstrap_admin
+      until: portainer_bootstrap_admin.status in [204, 404]
+      retries: "{{ (portainer_health_timeout | int / 5) | round(0, 'ceil') | int }}"
+      delay: 5
+      when: not ansible_check_mode
+
+    - name: Record the bootstrap result
+      ansible.builtin.set_fact:
+        portainer_admin_ready: "{{ portainer_bootstrap_admin.status | default(-1) == 204 }}"
+        portainer_bootstrap_ran: true
+      when: not ansible_check_mode
+  always:
+    - name: Remove the one-shot admin bootstrap container
+      community.docker.docker_container:
+        name: "{{ portainer_container_name }}-bootstrap"
+        state: absent
+      no_log: true
+
+- name: Refuse a failed admin bootstrap
+  ansible.builtin.assert:
+    that: portainer_admin_ready | bool
+    fail_msg: >-
+      The bootstrap container did not report an admin on volume
+      {{ portainer_volume_name }} (HTTP {{ portainer_bootstrap_admin.status | default('n/a') }}).
+      Check that portainer_admin_password_hash is the bcrypt hash of the password
+      (see the role README). Nothing was published.
+    quiet: true
+  when:
+    - portainer_bootstrap_ran | bool
+
+# No hash: never publish beyond loopback unless the desired volume is proven to
+# have an admin (otherwise its setup page would be on the LAN). Under --check
+# with a hash the bootstrap is only previewed, so it cannot be proven yet.
+- name: Refuse LAN exposure without a proven admin account
+  ansible.builtin.assert:
+    that: >-
+      portainer_admin_ready | bool
+      or (ansible_check_mode and portainer_admin_password_hash | length > 0)
+    fail_msg: >-
+      Volume {{ portainer_volume_name }} is not proven to have a Portainer admin
+      (no running container on that volume answering 204) and no
+      portainer_admin_password_hash is set. Set the hash in the vault, or run the
+      role with portainer_bind_address 127.0.0.1 first and create the admin at
+      https://127.0.0.1:{{ portainer_host_port }}, then expose it (see the role README).
+    quiet: true
+  when: portainer_lan_exposed | bool

@@ -143,6 +143,15 @@
   tags:
     - open-webui
 
+- name: Run Portainer CE (Docker container)
+  ansible.builtin.include_role:
+    name: portainer
+    apply:
+      tags:
+        - portainer
+  tags:
+    - portainer
+
 - name: Install devtools
   ansible.builtin.include_role:
     name: devtools

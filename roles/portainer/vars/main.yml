@@ -1,0 +1,8 @@
+---
+# Internal; not meant to be overridden.
+portainer_lan_exposed: "{{ portainer_bind_address is not match('^127\\.') }}"
+# Portainer's HTTPS listener inside the container (--bind-https default).
+portainer_container_port: 9443
+# URL the role probes from the host; the certificate is Portainer's self-signed one.
+portainer_local_url: >-
+  https://{{ '127.0.0.1' if portainer_bind_address == '0.0.0.0' else portainer_bind_address }}:{{ portainer_host_port }}
