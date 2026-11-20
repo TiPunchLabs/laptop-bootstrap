@@ -17,6 +17,30 @@ refused as designed with no change (`laptop-10-check-nohash.log` for 5de0c8a,
 `laptop-20-check-nohash.log` for 21b839f). The commit that adds this update
 changes documentation only.
 
+## Merge (owner decision MERGE, 2026-11-20)
+
+Owner decision, relayed by the pilot: « Pousser + PR + fusion (Recommandé) ».
+
+- Pre-merge commits on `feat/portainer-local`, hooks passed (dummy vault password):
+  - 4b968a2 `docs(missions)`: review-2.md (Codex, PASS_WITH_RESERVATIONS on
+    21b839f, F1.1 and F1.2 fixed), review-brief-2.md, report-s3-homelab.md
+    (homelab MR !108), mission.md D2 record.
+  - 16cdf40 `chore(vault)`: the owner's encrypted vault edit from
+    owner-commands-d1.md step 2 (adds `vault_portainer_admin_password_hash`).
+    Still `$ANSIBLE_VAULT` encrypted, check-ansible-vault hook passed. The agent
+    did not read its content.
+- Remote `origin` = `git@github-xgueret:TiPunchLabs/laptop-bootstrap.git`
+  (`ssh -T` -> `Hi xgueret!`).
+- PR: https://github.com/TiPunchLabs/laptop-bootstrap/pull/69 (head 16cdf40).
+- CI: run 44820853771, jobs lint and terraform, success
+  (https://github.com/TiPunchLabs/laptop-bootstrap/actions/runs/44820853771).
+  No CI fix was needed. CI is not a laptop proof.
+- Merge: merge commit f8299e94c401f15bcc529f93972b84045af25321, 2026-11-20T21:31:30Z;
+  branch `feat/portainer-local` kept. Local `main` fast-forwarded 019c7fa ->
+  f8299e9 with `git fetch origin main:main` (no working tree touched).
+- No playbook was run for this step. This commit, which records the merge, is
+  on `feat/portainer-local` only, after the merge.
+
 ## Review 1 (Codex, CHANGES_REQUESTED on 2962443) and resolution
 
 Fix commit: 21b839f `fix(portainer): bootstrap the admin with a one-shot container
@@ -419,4 +443,4 @@ available non-interactively; no vault value was needed for this tag.
 - Pilot: dispatch review 2 on 21b839f; this report answers F1.1 and F1.2. Then
   hand the owner `owner-commands-d1.md` (updated for 21b839f) and collect the
   reported outputs.
-- Nothing was pushed; push and PR wait for the pilot.
+- Superseded: pushed, PR #69 merged as f8299e9 (see Merge).
