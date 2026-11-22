@@ -38,8 +38,10 @@ Owner decision, relayed by the pilot: « Pousser + PR + fusion (Recommandé) ».
 - Merge: merge commit f8299e94c401f15bcc529f93972b84045af25321, 2026-11-20T21:31:30Z;
   branch `feat/portainer-local` kept. Local `main` fast-forwarded 019c7fa ->
   f8299e9 with `git fetch origin main:main` (no working tree touched).
-- No playbook was run for this step. This commit, which records the merge, is
-  on `feat/portainer-local` only, after the merge.
+- No playbook was run for this step. The merge record (e34cda1 on
+  `feat/portainer-local`) reaches `main` through a docs-only follow-up PR from
+  branch `docs/portainer-local-merge-record` (owner decision 2026-11-22).
+- S4 verified by pilotage 2026-11-22: portainer.internal -> 192.168.10.70, HTTPS 200, Portainer 2.45.3, HTTP 308 redirect.
 
 ## Review 1 (Codex, CHANGES_REQUESTED on 2962443) and resolution
 
