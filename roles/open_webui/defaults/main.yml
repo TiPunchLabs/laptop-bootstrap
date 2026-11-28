@@ -2,7 +2,7 @@
 # Official image, pinned to a stable release tag. Never main, latest or dev
 # (the role asserts it). Bump deliberately; see the role README → Updating.
 open_webui_image: ghcr.io/open-webui/open-webui
-open_webui_version: "v0.13.0"
+open_webui_version: "v0.13.5"
 
 open_webui_container_name: open-webui
 open_webui_volume_name: open-webui

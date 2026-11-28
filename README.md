@@ -185,7 +185,7 @@ pnpm bin -g                  # ~/.local/share/pnpm/bin, listed in PATH after /us
 
 ### Open WebUI
 
-`make play-open-webui` runs Open WebUI `v0.13.0` in Docker, published on `127.0.0.1:3030` by default (this laptop: `0.0.0.0:3030`, filtered to the homelab Caddy), with its data in the `open-webui` volume and the host's Ollama as backend. The first account created becomes the administrator. Updates are manual (bump `open_webui_version`), and **an older tag does not undo database migrations**: back up the volume before every update. Details, backup/restore and the `openwebui.internal` reverse-proxy setup: [`roles/open_webui/README.md`](roles/open_webui/README.md).
+`make play-open-webui` runs Open WebUI `v0.13.5` in Docker, published on `127.0.0.1:3030` by default (this laptop: `0.0.0.0:3030`, filtered to the homelab Caddy), with its data in the `open-webui` volume and the host's Ollama as backend. The first account created becomes the administrator. Updates are manual (bump `open_webui_version`), and **an older tag does not undo database migrations**: back up the volume before every update. Details, backup/restore and the `openwebui.internal` reverse-proxy setup: [`roles/open_webui/README.md`](roles/open_webui/README.md).
 
 ### Portainer
 
