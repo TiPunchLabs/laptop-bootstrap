@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Back up or restore the Open WebUI data volume, stopping at the first failure.
 #
-#   open-webui-volume.sh backup <dest-dir>   -> prints the validated archive path (stdout)
+#   open-webui-volume.sh backup <dest-dir>   -> prints the validated archive path (stdout);
+#                                               exit 1 if the container cannot be started again
 #   open-webui-volume.sh restore <archive>   -> replaces the volume content, container left stopped
 #
 # Helpers run the container's own image (tar, gzip, python3 are in it), so nothing is
@@ -48,6 +49,7 @@ set -- /tmp/x
 }
 
 was_running=false
+rc=0
 running() { [ "$(docker inspect -f '{{.State.Running}}' "$CONTAINER")" = true ]; }
 
 IMAGE=$(docker inspect -f '{{.Config.Image}}' "$CONTAINER") || die "container $CONTAINER not found"
@@ -66,7 +68,13 @@ backup() {
 
 	if running; then was_running=true; fi
 	# From here on, any exit puts the container back in its previous state.
-	trap 'if $was_running && ! running; then docker start "$CONTAINER" >/dev/null || log "FAILED: docker start $CONTAINER"; fi' EXIT
+	# A failed restart turns a successful backup into exit 1 (the printed archive stays valid).
+	trap 'rc=$?
+if $was_running && ! running && ! docker start "$CONTAINER" >/dev/null; then
+	log "FAILED: docker start $CONTAINER; start it by hand"
+	[ "$rc" -ne 0 ] || rc=1
+fi
+exit "$rc"' EXIT
 	docker stop "$CONTAINER" >/dev/null || die "docker stop $CONTAINER"
 	running && die "$CONTAINER still running after stop"
 

@@ -29,6 +29,8 @@ make play-open-webui   # = uv run --no-sync .venv/bin/ansible-playbook -i invent
 ```
 
 The tag runs `docker` then `open_webui`, nothing else (never `cleanup_legacy`).
+To change the version of an existing install, use the guarded sequence under
+[Updating](#updating) instead: it backs up first and stops if the backup fails.
 The run ends by waiting for the container health check (up to
 `open_webui_health_timeout`, 300 s): a green run means the UI answered `/health`.
 
@@ -122,28 +124,40 @@ version reports `changed=0`. Verified on a VM, v0.12.5 → v0.13.0 (mission
 `2026-11-05-open-webui`) and v0.13.0 → v0.13.5, backup-based rollback included
 (mission `2026-11-28-open-webui-0-13-5`).
 
-1. Back up the volume with `bin/open-webui-volume.sh` (below) and keep the path it
-   prints. An update is a one-way database migration: this backup is the only way
-   back (see [Rollback](#rollback)). Chain the deploy of step 4 to it with `&&`, so
-   a failed backup stops everything.
-2. Read the release notes between the current and the new tag
+An update is a one-way database migration: the backup taken in step 3 is the only
+way back (see [Rollback](#rollback)).
+
+1. Read the release notes between the current and the new tag
    (<https://github.com/open-webui/open-webui/releases>), in particular
    "Database Migrations".
-3. Set the new tag where every later run will see it. Use one of these:
+2. Set the new tag where every later run will see it. Use one of these:
    - Through a PR, for every laptop: edit `open_webui_version` in
      `roles/open_webui/defaults/main.yml`.
    - For this laptop only, without changing the role: add
      `open_webui_version: "vX.Y.Z"` to `group_vars/all/vars.yml`. It overrides the
      role default, so remove it when the default catches up.
-4. Deploy and check:
+3. Back up, deploy and check, from the repository root, as **one** block. It runs
+   in a subshell with `set -euo pipefail`: it stops at the first failing command
+   without closing your terminal, so no `make play-open-webui` runs after a failed
+   backup. Do not paste only part of it.
 
    ```bash
-   archive=$(bin/open-webui-volume.sh backup ~/backups/open-webui) \
-     && make play-open-webui   # pulls vX.Y.Z, recreates the container, waits for healthy
-   docker inspect open-webui --format '{{.Config.Image}}'    # …/open-webui:vX.Y.Z
-   curl -fsS http://127.0.0.1:3030/api/config | jq -r .version  # X.Y.Z
-   make play-open-webui    # second run: changed=0
+   (
+     set -euo pipefail
+     mkdir -p ~/backups/open-webui
+     archive=$(bin/open-webui-volume.sh backup ~/backups/open-webui)
+     echo "validated backup (the only way back, keep it): $archive"
+     make play-open-webui    # pulls vX.Y.Z, recreates the container, waits for healthy
+     docker inspect open-webui --format '{{.Config.Image}}'       # …/open-webui:vX.Y.Z
+     curl -fsS http://127.0.0.1:3030/api/config | jq -r .version  # X.Y.Z
+     make play-open-webui    # second run: changed=0
+   )
    ```
+
+   If the first `make play-open-webui` fails on the health timeout, a long database
+   migration may still be running: watch `docker logs -f open-webui`, and once
+   `docker ps` shows `healthy`, run `make play-open-webui` again. Roll back only if
+   the migration itself failed.
 
    Sign in again with an existing account: your account and its chats must still be
    there.
@@ -183,11 +197,14 @@ archive=$(bin/open-webui-volume.sh backup ~/backups/open-webui) && echo "$archiv
    content is printed.
 4. Renames it to `.tar.gz` and prints its path on stdout, the only line on stdout.
 5. On any exit, success or failure, starts the container again if it was running.
+   If that start fails, the exit status is 1 even after a successful backup: the
+   printed archive is valid, but the container is stopped (`docker start open-webui`
+   by hand once the cause is fixed).
 
-A failure leaves no `.tar.gz`, at most a `.partial` to delete.
+A failure before step 4 leaves no `.tar.gz`, at most a `.partial` to delete.
 
 ```bash
-bin/open-webui-volume.sh restore ~/backups/open-webui/open-webui-<timestamp>.tar.gz
+bin/open-webui-volume.sh restore "$HOME/backups/open-webui/open-webui-<timestamp>.tar.gz"
 ```
 
 `restore <archive>` replaces the volume content and leaves the container **stopped**:
@@ -196,11 +213,19 @@ bin/open-webui-volume.sh restore ~/backups/open-webui/open-webui-<timestamp>.tar
 2. Runs the archive checks above, then extracts it into a new staging volume
    `open-webui-restore-<timestamp>` and checks the extracted data. A failure here
    changes nothing: the container keeps running on the current data.
-3. Stops the container, copies the current content to `open-webui-prerestore-<timestamp>`,
-   then replaces the volume content with the staging copy and checks it again. If
-   that fails, it puts the previous content back and exits 1.
-4. Removes the staging volume. The `prerestore` volume stays until you remove it
-   (`docker volume rm open-webui-prerestore-<timestamp>`).
+3. Stops the container and copies the current content to
+   `open-webui-prerestore-<timestamp>`. A failure here (stop not confirmed, copy
+   failed) leaves the volume untouched but the container may be **stopped**: since
+   its data has not changed, `docker start open-webui` is safe.
+4. Replaces the volume content with the staging copy and checks it again. If that
+   fails, it puts the previous content back from the `prerestore` volume, exits 1 and
+   leaves the container stopped; `docker start open-webui` is then safe again. If
+   even the put-back fails, it says so: copy the `prerestore` volume back by hand and
+   do not start the container. After a failure past the archive check, the
+   `open-webui-restore-…` and `open-webui-prerestore-…` volumes that exist are kept for
+   inspection; remove them once done.
+5. Removes the staging volume. The `prerestore` volume stays until you remove it
+   (`docker volume rm open-webui-prerestore-YYYYMMDD-HHMMSS`, name printed by the script).
 
 It needs about twice the volume size free in Docker's storage (staging + prerestore).
 After a restore, start the container with the role (see [Rollback](#rollback)), never
@@ -213,17 +238,35 @@ Rehearsed on the smoke VM, failure paths included (mission
 
 Open WebUI migrates its database forward at start; **setting an older tag does not
 reverse those migrations**, and an older version may refuse or corrupt a database
-written by a newer one. A rollback needs the backup taken *before* the update:
+written by a newer one. A rollback needs the backup taken *before* the update.
+Run, from the repository root, as **one** block (same subshell guard as for the
+update), after setting `archive` and `old` on its first lines:
 
-1. `bin/open-webui-volume.sh restore <that archive>`. It stops the container and
-   leaves it stopped: do **not** `docker start` it, the current (newer) image would
-   migrate the restored database forward again.
-2. Only if step 1 printed no `FAILED`: set `open_webui_version` back to the previous
-   tag, where you set it in step 3 of [Updating](#updating) (role default through a
-   PR, or `group_vars/all/vars.yml`).
-3. `make play-open-webui`: the role recreates the container on the previous image,
-   which starts on the restored database.
-4. Once the old version works, `docker volume rm open-webui-prerestore-<timestamp>`.
+```bash
+(
+  set -euo pipefail
+  archive="$HOME/backups/open-webui/<archive>.tar.gz"   # the path printed by the backup
+  old=vX.Y.Z                                             # the tag that wrote the archive
+  [[ $old =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "set old= to the previous tag" >&2; exit 1; }
+  # Stops the container and leaves it STOPPED: never `docker start` it, the current
+  # (newer) image would migrate the restored database forward again.
+  bin/open-webui-volume.sh restore "$archive"
+  # Pin the previous tag for this laptop (group_vars overrides the role default).
+  if grep -q '^open_webui_version:' group_vars/all/vars.yml; then
+    sed -i "s/^open_webui_version:.*/open_webui_version: \"$old\"/" group_vars/all/vars.yml
+  else
+    echo "open_webui_version: \"$old\"" >> group_vars/all/vars.yml
+  fi
+  make play-open-webui    # recreates the container on $old, which starts on the restored data
+  curl -fsS http://127.0.0.1:3030/api/config | jq -r .version
+)
+```
+
+Left unchanged, `old` stops the block before anything happens, and the script
+refuses the `<archive>` placeholder before touching anything.
+Once the old version works, remove `open-webui-prerestore-<timestamp>`
+(`docker volume rm …`), and remove the pin from `group_vars/all/vars.yml` when the
+role default is meant to apply again.
 
 Without that backup, rolling back is not supported (upstream offers manual Alembic
 downgrades, at the risk of data loss).

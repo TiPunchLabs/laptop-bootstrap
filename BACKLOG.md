@@ -13,9 +13,10 @@ Last review: 2026-11-28.
   VM upgrade, idempotence and backup-based rollback verified. The laptop still
   runs v0.13.0 (container published on `192.168.10.217:3030`, not the
   `0.0.0.0:3030` the repo sets: the apply recreates it on `0.0.0.0`).
-- Next step: Codex review 2 (review 1's findings fixed: fail-safe
-  `bin/open-webui-volume.sh`), then push, PR and merge under the owner's
-  conditional grant, then the owner's runbook (mission report).
+- Next step: Codex review 3, the last cycle (findings of reviews 1-2 fixed:
+  fail-safe `bin/open-webui-volume.sh`, guarded update/rollback blocks), then
+  push, PR and merge under the owner's conditional grant, then the owner's
+  runbook (mission report).
   Source: `docs/missions/2026-11-28-open-webui-0-13-5/`.
 
 ### `portainer.internal` (mission `2026-11-16-portainer-local`)
