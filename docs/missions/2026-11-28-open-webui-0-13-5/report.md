@@ -2,17 +2,17 @@
 
 ## Verdict
 
-PARTIAL, pending review 3, the last cycle.
+PARTIAL: the repository work is complete and reviewed, and the laptop apply is
+pending the owner.
 
-- Review 1 (F1.1, F1.2 major; F1.3 minor) and review 2 (F2.1 major; F2.2 minor,
-  plus one over-broad sentence) both returned CHANGES_REQUESTED. All their findings
-  are fixed in this revision (see Reviews).
+- Review 3, the last cycle, is PASS_WITH_RESERVATIONS with no finding. All
+  findings of reviews 1 and 2 are fixed.
 - VERIFIED: AC1-AC5 and AC-SAFE.
-- AC6: every published update and rollback procedure is now one guarded block. The
-  exact documented blocks were run on the VM with failing backups, failing
-  restores, a refused restart and a failed swap. Running them on the laptop is a
-  later step, after a review with no blocker or major finding.
-- PASS needs review 3 (docs/agent-workflow.md §7).
+- AC6: VERIFIED as a written and VM-rehearsed runbook. It is not executed on the
+  laptop: the apply needs the real vault (`pass`) and sudo, so it stays with the
+  owner (see "Owner apply after merge").
+- The owner's grant applied after review 3: push, PR, and merge once CI is green
+  (see "Git state").
 
 ## Executive summary
 
@@ -489,6 +489,107 @@ Post-update admin review, optional and not part of this mission:
 - Retrieval Top K and chunk size: the defaults changed.
 - Reindex existing knowledge only if the new chunk size is wanted.
 
+## Owner apply after merge (final, run by the owner)
+
+This is the block to run, from the main checkout, after the merge. It is the
+runbook's guarded update block preceded by repository guards.
+
+- It stops at the first failure without closing the terminal. Paste it whole.
+- It will ask for: the gpg passphrase of `pass` (vault, through
+  `bin/ansible-vault-pass.sh`) and the sudo password (`sudo -v`, `become: true`).
+- The main checkout is currently on `feat/mise-act-pinact` (clean, `1bed8a3`). The
+  block switches it to `main`; `git switch feat/mise-act-pinact` afterwards
+  returns to it.
+
+```bash
+(
+  set -euo pipefail
+  cd /home/xgueret/Workspace/02-infrastructure/local/laptop-bootstrap
+  git switch main                      # refuses if local changes would be overwritten
+  git pull --ff-only
+  # Guards: the merged default is v0.13.5 and no laptop pin overrides it.
+  grep -qx 'open_webui_version: "v0.13.5"' roles/open_webui/defaults/main.yml
+  if grep -q '^open_webui_version:' group_vars/all/vars.yml; then
+    echo "group_vars/all/vars.yml pins open_webui_version: remove it first" >&2; exit 1
+  fi
+  test -x bin/open-webui-volume.sh
+  mkdir -p ~/backups/open-webui
+  sudo -v                              # sudo for the play (become: true)
+  docker pull ghcr.io/open-webui/open-webui:v0.13.5   # before any stop; the old container keeps serving
+
+  # 1. Backup: stops the container, writes and checks the archive, starts the container again.
+  #    Any failure (including a failed restart) ends the block here.
+  archive=$(bin/open-webui-volume.sh backup ~/backups/open-webui)
+  echo "validated backup (the only way back, keep it): $archive"
+
+  # 2. Apply (vault via pass + sudo): v0.13.5 on 0.0.0.0:3030, waits for healthy.
+  make play-open-webui
+
+  # 3. Checks, then the second run.
+  docker inspect open-webui --format '{{.Config.Image}}'                  # ghcr.io/open-webui/open-webui:v0.13.5
+  docker ps --filter name=open-webui --format '{{.Status}} {{.Ports}}'     # Up … (healthy) 0.0.0.0:3030->8080/tcp
+  curl -fsS http://127.0.0.1:3030/health; echo                             # {"status":true}
+  curl -fsS http://127.0.0.1:3030/api/config | jq -r .version              # 0.13.5
+  make play-open-webui                                                     # second run: changed=0
+
+  # 4. Further checks.
+  docker logs open-webui 2>&1 | grep -E 'Running upgrade|Migration progress'   # 7 revisions, ends at 5e7a2c9d4b13
+  docker exec open-webui curl -fsS http://host.docker.internal:11434/api/version; echo   # Ollama reachable
+  sudo iptables -S OPEN-WEBUI-INGRESS                                      # 192.168.10.70 RETURN + DROP
+  ssh caddy-70 curl -fsS http://192.168.10.217:3030/health; echo           # homelab proxy path
+)
+```
+
+Relation to the tested blocks:
+- From `# 1. Backup` onwards, the block is byte-identical to the reviewed report
+  update block, which ran on the VM as T2 and T3a (`diff` on the extracted blocks).
+  Before that, it adds `cd` to the main checkout, the git and guard lines, and
+  `test -x`.
+- Checks of the added lines (`E/blocks/owner-apply.sh`):
+  - `bash -n`: OK.
+  - The guard lines, run in a fresh bash against this worktree: pass.
+  - Against a scratch copy with an old default: exit 1. With a pin in
+    `vars.yml`: exit 1, message printed.
+  - Pasted into an interactive `bash -i`: the block stops at the failing guard and
+    the shell stays alive (exit status 1).
+  - `git switch` and `git pull` were not run, because the main checkout is the
+    owner's.
+- Errexit context: inside the agent's tool shell, errexit is ignored (a
+  `( set -e; false; echo … )` probe prints), so the guard tests were run in fresh
+  `bash` processes. This is the case review 3 warns about: run the block at a bash
+  prompt, not inside an `if`, `&&`, `||` or a function called from one.
+
+Post-apply checks, by the owner:
+
+| Check | Expected |
+|---|---|
+| Block exit | ends without `FAILED` or a shell error; both `make play-open-webui` runs `failed=0`, the second `changed=0` |
+| Image / health / version | `…:v0.13.5`, `(healthy)`, `{"status":true}`, `0.13.5` |
+| Port | `0.0.0.0:3030->8080/tcp`, no `[::]` (moved from `192.168.10.217:3030`, the pre-existing drift) |
+| Migration | `docker logs` shows the 7 `Running upgrade` lines ending at `5e7a2c9d4b13` and "Migration progress: moved the messages of N chats" |
+| Filter | `OPEN-WEBUI-INGRESS`: `-s 192.168.10.70/32 -j RETURN` then the `DROP` on 3030→8080 |
+| Proxy | `ssh caddy-70 …/health` → `{"status":true}`; <https://openwebui.internal> opens |
+| Sign-in | existing account signs in; old chats open with their messages |
+| Ollama | `/api/version` answers from the container; the Ollama models appear in the model selector |
+| Backup | keep the printed archive (root, 0600) until v0.13.5 has been used for a while |
+
+If the block stops:
+- At `git switch` or `git pull`: nothing has happened yet. Resolve the git
+  state and rerun the block.
+- At a guard: fix what the guard names, then rerun.
+- At the backup: see "If the block stops at step 1" in the runbook above.
+- At the first `make play-open-webui`: if it is the health timeout, watch
+  `docker logs -f open-webui` for "Migration progress". Once the container is
+  healthy, run `make play-open-webui` again and the checks of steps 3-4 by hand.
+  Any other failure: keep the archive, and decide between a retry and the
+  guarded rollback block (runbook above, `archive=` set to the printed path).
+
+After a successful apply:
+- Remove the BACKLOG "In progress" entry for this mission, in a follow-up docs
+  change.
+- Optionally `docker image rm ghcr.io/open-webui/open-webui:v0.13.0` once
+  rollback is no longer wanted.
+
 ## Deviations, risks and limitations
 
 - Smoke used SSH plus the worktree venv's Ansible, not `make smoke-replay`. This is
@@ -586,6 +687,20 @@ Review 2, by Codex (`review-2.md`): CHANGES_REQUESTED. It accepted F1.2 and F1.3
     Put-back failure: by hand.
 - Reservation on put-back not being exercised: now exercised (T9).
 
+Review 3, the last cycle, by Codex (`review-3.md`): PASS_WITH_RESERVATIONS on
+`b63ecec`, no finding. It confirms F2.1 and F2.2 resolved, the restore-state
+wording, the corrected T9/T10 evidence, and that the four blocks match the docs.
+
+Reservations, carried as owner awareness:
+- The blocks must be pasted whole and run in bash with errexit active. They must
+  not be split, or run where errexit is disabled.
+- The fix-2 applies and `ssh` were stubs: control-flow evidence only. The real
+  update and rollback were verified on the VM in fix 1.
+- Not reproduced: persistent disk or I/O failure, a failed put-back, the
+  laptop's full-history migration time, live firewall/Caddy enforcement and
+  Ollama visibility. These are owner checks.
+- Keep the validated pre-update archive through the owner's validation.
+
 ## Delegations (model economy)
 
 - One `general-purpose` subagent on Sonnet:
@@ -601,10 +716,19 @@ Review 2, by Codex (`review-2.md`): CHANGES_REQUESTED. It accepted F1.2 and F1.3
 - Branch `feat/open-webui-0-13-5` on top of `f8299e9`:
   - `c318c0b`: the version bump.
   - `c364acb`: fix 1.
-  - The fix-2 commit, whose hash is given at the end of the executor's turn
-    ("Version").
-- Not pushed, no PR, no merge.
-- pre-commit ran on the staged files and as the commit hook. Not bypassed.
+  - `b63ecec`: fix 2.
+  - A merge-preparation docs commit: review 3 and its brief (review 2 and its
+    brief were already in `b63ecec`), the mission log, and this
+    report's owner-apply section.
+- The branch tracked `origin/main`. Its upstream was unset before pushing, and the
+  push named the branch explicitly (`git push -u origin feat/open-webui-0-13-5`).
+- Remote `git@github-xgueret:TiPunchLabs/laptop-bootstrap.git`; `ssh -T` answered
+  `Hi xgueret!`.
+- PR to `main`, merged with a merge commit (commits kept, as for PR #69) after CI
+  went green. The branch is not deleted.
+- The merge commit's hash cannot be written into the content it merges. It is in
+  `git log main` and in the executor's final line ("Version").
+- pre-commit ran on every commit. No hook was bypassed.
 
 ## Authorizations and decisions
 
@@ -619,15 +743,18 @@ Review 2, by Codex (`review-2.md`): CHANGES_REQUESTED. It accepted F1.2 and F1.3
   - then the laptop apply per the runbook above.
 - Steps that need the real vault (`pass`) or an interactive sudo password stay with
   the owner. The pilot routes these steps; the executor does not start them.
-- Status: reviews 1 and 2 had major findings, so the condition is not met. Nothing
-  beyond the commits was done. Review 3, the last cycle, decides.
+- Status: review 3 (PASS_WITH_RESERVATIONS, no finding) met the condition.
+  - Push, PR and merge: done by the executor, see "Git state".
+  - The laptop apply: left to the owner, because it needs `pass` and sudo. The
+    pilot asked the executor not to run it.
 
 ## Recommended next action
 
-Codex review 3 of this branch, the last cycle, routed by the pilot.
+The owner runs the "Owner apply after merge" block from the main checkout, then the
+post-apply checks.
 
-- If it has no blocker or major finding, the owner's grant applies: push, PR,
-  merge once CI is green, then the laptop runbook. The `pass` and sudo prompts stay
-  with the owner.
-- If findings remain open after review 3, the workflow requires a BLOCKED or
-  PARTIAL report listing them.
+- Prerequisite: the merge (done).
+- Interactive: gpg/`pass` passphrase and sudo password.
+- Afterwards: a docs follow-up removing the BACKLOG "In progress" entry, and
+  optionally a merge-record note in the mission log, as done for portainer-local
+  (PR #70).

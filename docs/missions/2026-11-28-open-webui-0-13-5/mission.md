@@ -30,13 +30,13 @@ Out: Ollama, LiteLLM, any Open WebUI admin setting or knowledge base, any data i
 5. report.md (docs/agent-workflow.md §7) with the owner runbook; commit on the branch. Reviews are routed by the pilot (Codex), not started by the executor.
 
 ## State
-- Phase: report after fix-2 (awaiting review 3, last cycle, routed by the pilot)
+- Phase: merge (review 3 PASS_WITH_RESERVATIONS); laptop apply pending the owner
 - Branch / worktree: feat/open-webui-0-13-5 / /home/xgueret/Workspace/02-infrastructure/local/laptop-bootstrap-worktrees/open-webui-0-13-5
 - Base commit: f8299e9 (origin/main)
 - Evidence dir: ~/.local/share/laptop-bootstrap-agent/2026-11-28-open-webui-0-13-5/
 - Reviewer: routed by the pilot (Codex)
-- Review cycle: 2 of 3 (reviews 1 and 2 CHANGES_REQUESTED, fixed; review 3 is the last)
-- Next step: Codex review 3 (pilot, last cycle); if no blocker/major: push, PR, merge (CI green), then owner runbook in report.md
+- Review cycle: 3 of 3 (review 3 PASS_WITH_RESERVATIONS, no finding)
+- Next step: owner runs "Owner apply after merge" (report.md) from the main checkout; then BACKLOG entry removal
 - Main-tree snapshot baseline: E/main-tree-snap-baseline.txt (6c87c520…d056a8, unchanged at report)
 - Smoke VM: smoke_default (Vagrant state in the portainer worktree), started with virsh, left running on v0.13.5
 
@@ -55,3 +55,5 @@ Out: Ollama, LiteLLM, any Open WebUI admin setting or knowledge base, any data i
 - 2026-11-28 report: report.md written; laptop open-webui unchanged (same id, v0.13.0, restarts 0); main snapshot unchanged.
 - 2026-11-28 fix-1: review 1 CHANGES_REQUESTED (F1.1, F1.2 major; F1.3 minor). F1.1/F1.2 → bin/open-webui-volume.sh (backup: space check, stop, .partial, archive check gzip+integrity+key, rename, restart on any exit; restore: placeholder/missing refused, archive check, staging volume + check, stop, prerestore copy, swap + check, put-back on failure, container left stopped); runbook as one set -euo pipefail block; role README Backup/Restore/Rollback aligned. F1.3 → report "Authorizations and decisions" quotes the owner's conditional grant (not yet met). VM: apt-get clean (disk), backup failures a-c, restore failures a-c, gate closed, restore→rollback v0.13.0, gated update changed=1, idempotence changed=0. Laptop untouched. BACKLOG: portainer README restore follow-up.
 - 2026-11-28 fix-2: review 2 CHANGES_REQUESTED (F2.1 major, F2.2 minor, report sentence too broad). F2.1 → README update and rollback, report update and rollback: one ( set -euo pipefail … ) subshell each (report checks + second apply folded in); placeholders quoted (unquoted <archive> was shell redirection). F2.2 → backup EXIT trap exits 1 on failed restart. Restore failure states listed per stage. VM: documented blocks extracted verbatim, run with stub make/ssh + docker shim: T1-T3a/T5-T8 failures → 0 applies; T3b exit 1 + path; T4/T10 success; T9 put-back verified. Test artifacts removed; VM open-webui v0.13.5 unchanged. Laptop untouched.
+- 2026-11-28 pilot: review 3 PASS_WITH_RESERVATIONS on b63ecec (no finding). Condition of the owner's grant met: push, PR, merge (CI green, keep commits), then laptop apply (owner runs steps needing pass or sudo).
+- 2026-11-28 merge prep: report gains "Owner apply after merge" (guarded block from the main checkout: git switch main, pull --ff-only, version/pin guards, then the reviewed update block) and post-apply checks; guard lines tested in fresh and interactive bash. Upstream of the branch unset (it tracked origin/main) before the push.

@@ -9,14 +9,12 @@ Last review: 2026-11-28.
 ## In progress
 
 ### Open WebUI v0.13.5 (mission `2026-11-28-open-webui-0-13-5`)
-- Status: `open_webui_version` bumped to v0.13.5 on branch `feat/open-webui-0-13-5`;
-  VM upgrade, idempotence and backup-based rollback verified. The laptop still
+- Status: `open_webui_version` v0.13.5 merged to `main` (3 Codex reviews, last
+  PASS_WITH_RESERVATIONS); VM upgrade, idempotence and backup-based rollback verified. The laptop still
   runs v0.13.0 (container published on `192.168.10.217:3030`, not the
   `0.0.0.0:3030` the repo sets: the apply recreates it on `0.0.0.0`).
-- Next step: Codex review 3, the last cycle (findings of reviews 1-2 fixed:
-  fail-safe `bin/open-webui-volume.sh`, guarded update/rollback blocks), then
-  push, PR and merge under the owner's conditional grant, then the owner's
-  runbook (mission report).
+- Next step: owner runs the "Owner apply after merge" block of the mission
+  report (needs `pass` and sudo), then removes this entry.
   Source: `docs/missions/2026-11-28-open-webui-0-13-5/`.
 
 ### `portainer.internal` (mission `2026-11-16-portainer-local`)
