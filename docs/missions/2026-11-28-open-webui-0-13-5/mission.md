@@ -30,13 +30,13 @@ Out: Ollama, LiteLLM, any Open WebUI admin setting or knowledge base, any data i
 5. report.md (docs/agent-workflow.md §7) with the owner runbook; commit on the branch. Reviews are routed by the pilot (Codex), not started by the executor.
 
 ## State
-- Phase: report (awaiting review routed by the pilot)
+- Phase: report after fix-1 (awaiting review 2, routed by the pilot)
 - Branch / worktree: feat/open-webui-0-13-5 / /home/xgueret/Workspace/02-infrastructure/local/laptop-bootstrap-worktrees/open-webui-0-13-5
 - Base commit: f8299e9 (origin/main)
 - Evidence dir: ~/.local/share/laptop-bootstrap-agent/2026-11-28-open-webui-0-13-5/
 - Reviewer: routed by the pilot (Codex)
-- Review cycle: 0 of 3
-- Next step: Codex review (pilot); then owner runbook in report.md
+- Review cycle: 1 of 3 (review 1 CHANGES_REQUESTED, fixed)
+- Next step: Codex review 2 (pilot); if no blocker/major: push, PR, merge (CI green), then owner runbook in report.md
 - Main-tree snapshot baseline: E/main-tree-snap-baseline.txt (6c87c520…d056a8, unchanged at report)
 - Smoke VM: smoke_default (Vagrant state in the portainer worktree), started with virsh, left running on v0.13.5
 
@@ -53,3 +53,4 @@ Out: Ollama, LiteLLM, any Open WebUI admin setting or knowledge base, any data i
 - 2026-11-28 implement: defaults v0.13.5, role README, README, BACKLOG. Worktree venv built with --python 3.12 (rpds-py). Lint/yamllint/syntax exit 0.
 - 2026-11-28 verify: VM baseline v0.13.0 changed=2 (filter sources) → seed user+chat → backup → update changed=1 (alembic e42c8f710a36 → 5e7a2c9d4b13, chat migrated) → changed=0 → rollback rehearsal OK → update again changed=1 → changed=0.
 - 2026-11-28 report: report.md written; laptop open-webui unchanged (same id, v0.13.0, restarts 0); main snapshot unchanged.
+- 2026-11-28 fix-1: review 1 CHANGES_REQUESTED (F1.1, F1.2 major; F1.3 minor). F1.1/F1.2 → bin/open-webui-volume.sh (backup: space check, stop, .partial, archive check gzip+integrity+key, rename, restart on any exit; restore: placeholder/missing refused, archive check, staging volume + check, stop, prerestore copy, swap + check, put-back on failure, container left stopped); runbook as one set -euo pipefail block; role README Backup/Restore/Rollback aligned. F1.3 → report "Authorizations and decisions" quotes the owner's conditional grant (not yet met). VM: apt-get clean (disk), backup failures a-c, restore failures a-c, gate closed, restore→rollback v0.13.0, gated update changed=1, idempotence changed=0. Laptop untouched. BACKLOG: portainer README restore follow-up.

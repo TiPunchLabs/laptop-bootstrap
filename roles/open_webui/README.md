@@ -122,8 +122,10 @@ version reports `changed=0`. Verified on a VM, v0.12.5 → v0.13.0 (mission
 `2026-11-05-open-webui`) and v0.13.0 → v0.13.5, backup-based rollback included
 (mission `2026-11-28-open-webui-0-13-5`).
 
-1. Back up the volume (below). An update is a one-way database migration: this
-   backup is the only way back (see [Rollback](#rollback)).
+1. Back up the volume with `bin/open-webui-volume.sh` (below) and keep the path it
+   prints. An update is a one-way database migration: this backup is the only way
+   back (see [Rollback](#rollback)). Chain the deploy of step 4 to it with `&&`, so
+   a failed backup stops everything.
 2. Read the release notes between the current and the new tag
    (<https://github.com/open-webui/open-webui/releases>), in particular
    "Database Migrations".
@@ -136,7 +138,8 @@ version reports `changed=0`. Verified on a VM, v0.12.5 → v0.13.0 (mission
 4. Deploy and check:
 
    ```bash
-   make play-open-webui    # pulls vX.Y.Z, recreates the container, waits for healthy
+   archive=$(bin/open-webui-volume.sh backup ~/backups/open-webui) \
+     && make play-open-webui   # pulls vX.Y.Z, recreates the container, waits for healthy
    docker inspect open-webui --format '{{.Config.Image}}'    # …/open-webui:vX.Y.Z
    curl -fsS http://127.0.0.1:3030/api/config | jq -r .version  # X.Y.Z
    make play-open-webui    # second run: changed=0
@@ -159,23 +162,52 @@ previous image stays on disk, which makes a rollback faster. Remove it with
 ## Backup and restore
 
 Everything (database, uploads, vector store, secret key, model cache) is in the volume.
+[`bin/open-webui-volume.sh`](../../bin/open-webui-volume.sh) does both directions and
+stops at the first failure (exit 1, `FAILED: …` on stderr). Its helpers run the
+container's own image (`tar`, `gzip`, `python3`), so nothing is pulled. No sudo needed
+for a member of the `docker` group.
 
 ```bash
-# Backup — stop first so SQLite is consistent. The archive is created mode 0600
-# (owned by root): it holds the secret key and every user's data.
-docker stop open-webui
-docker run --rm -v open-webui:/data:ro -v "$PWD":/backup alpine:3 \
-  sh -c 'umask 077 && tar czf /backup/open-webui-$(date +%Y%m%d-%H%M).tar.gz -C /data .'
-docker start open-webui
-
-# Restore into the same volume (replaces its content), container stopped
-docker stop open-webui
-docker run --rm -v open-webui:/data -v "$PWD":/backup:ro alpine:3 \
-  sh -c 'find /data -mindepth 1 -delete && tar xzf /backup/<archive>.tar.gz -C /data'
-docker start open-webui   # plain restore only; for a rollback, see below
+mkdir -p ~/backups/open-webui
+archive=$(bin/open-webui-volume.sh backup ~/backups/open-webui) && echo "$archive"
 ```
 
-Store the archive like a secret.
+`backup <dir>`:
+
+1. Checks the directory exists, is writable and has more free space than the volume
+   holds, before stopping anything.
+2. Stops the container (SQLite must be quiet), writes `open-webui-<timestamp>.tar.gz.partial`
+   (mode 0600, owned by root: it holds the secret key and every user's data).
+3. Checks that exact file: complete gzip stream, `webui.db` passes `PRAGMA
+   integrity_check`, `.webui_secret_key` present and not empty. Nothing of their
+   content is printed.
+4. Renames it to `.tar.gz` and prints its path on stdout, the only line on stdout.
+5. On any exit, success or failure, starts the container again if it was running.
+
+A failure leaves no `.tar.gz`, at most a `.partial` to delete.
+
+```bash
+bin/open-webui-volume.sh restore ~/backups/open-webui/open-webui-<timestamp>.tar.gz
+```
+
+`restore <archive>` replaces the volume content and leaves the container **stopped**:
+
+1. Refuses a path still containing `<…>`, or a missing file.
+2. Runs the archive checks above, then extracts it into a new staging volume
+   `open-webui-restore-<timestamp>` and checks the extracted data. A failure here
+   changes nothing: the container keeps running on the current data.
+3. Stops the container, copies the current content to `open-webui-prerestore-<timestamp>`,
+   then replaces the volume content with the staging copy and checks it again. If
+   that fails, it puts the previous content back and exits 1.
+4. Removes the staging volume. The `prerestore` volume stays until you remove it
+   (`docker volume rm open-webui-prerestore-<timestamp>`).
+
+It needs about twice the volume size free in Docker's storage (staging + prerestore).
+After a restore, start the container with the role (see [Rollback](#rollback)), never
+with a plain `docker start` on a newer image. Store archives like secrets.
+
+Rehearsed on the smoke VM, failure paths included (mission
+`2026-11-28-open-webui-0-13-5`).
 
 ## Rollback
 
@@ -183,14 +215,15 @@ Open WebUI migrates its database forward at start; **setting an older tag does n
 reverse those migrations**, and an older version may refuse or corrupt a database
 written by a newer one. A rollback needs the backup taken *before* the update:
 
-1. `docker stop open-webui`.
-2. Restore that backup with the restore command above, **without** the final
-   `docker start`: starting the current (newer) image would migrate the restored
-   database forward again.
-3. Set `open_webui_version` back to the previous tag, where you set it in step 3 of
-   [Updating](#updating) (role default through a PR, or `group_vars/all/vars.yml`).
-4. `make play-open-webui`: the role recreates the container on the previous
-   image, which starts on the restored database.
+1. `bin/open-webui-volume.sh restore <that archive>`. It stops the container and
+   leaves it stopped: do **not** `docker start` it, the current (newer) image would
+   migrate the restored database forward again.
+2. Only if step 1 printed no `FAILED`: set `open_webui_version` back to the previous
+   tag, where you set it in step 3 of [Updating](#updating) (role default through a
+   PR, or `group_vars/all/vars.yml`).
+3. `make play-open-webui`: the role recreates the container on the previous image,
+   which starts on the restored database.
+4. Once the old version works, `docker volume rm open-webui-prerestore-<timestamp>`.
 
 Without that backup, rolling back is not supported (upstream offers manual Alembic
 downgrades, at the risk of data loss).

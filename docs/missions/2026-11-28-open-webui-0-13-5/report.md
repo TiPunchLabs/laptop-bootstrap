@@ -2,10 +2,14 @@
 
 ## Verdict
 
-PARTIAL, pending review. All acceptance criteria that this executor can verify are
-VERIFIED: AC1-AC5 and AC-SAFE. AC6 (the owner runbook) is written. Running it on the
-laptop is an owner action and has not been executed. The Codex review, routed by the
-pilot, has not run yet, so PASS cannot be claimed (docs/agent-workflow.md §7).
+PARTIAL, pending review 2. Review 1 returned CHANGES_REQUESTED with F1.1 and F1.2
+(major) and F1.3 (minor); all three are fixed in this revision (see Reviews).
+
+- VERIFIED: AC1-AC5 and AC-SAFE.
+- AC6: the runbook is now fail-safe, and its backup and restore paths were
+  rehearsed on the VM, failure paths included. Running it on the laptop is a later
+  step, after a review with no blocker or major finding.
+- PASS needs review 2 (docs/agent-workflow.md §7).
 
 ## Executive summary
 
@@ -25,6 +29,15 @@ pilot, has not run yet, so PASS cannot be claimed (docs/agent-workflow.md §7).
   - Data kept: same user, same secret key, the old session token still works, and
     the chat with its messages survived the migration.
   - Rollback from the backup back to v0.13.0, then the update again: both work.
+- Fix 1, after review 1:
+  - New `bin/open-webui-volume.sh` (`backup` / `restore`). It stops at the first
+    failure.
+  - The backup checks the exact archive it wrote and gates the apply (`&&`).
+  - The restore validates the archive and extracts it into a staging volume before
+    the live volume is touched. It keeps the previous content in a `prerestore`
+    volume and puts it back if the swap fails.
+  - Rehearsed on the VM: 3 backup failures, 3 restore failures, a closed gate,
+    rollback to v0.13.0, then a gated update and `changed=0`.
 - This laptop's Open WebUI was not touched: still v0.13.0, same container ID, never
   restarted.
 
@@ -65,6 +78,15 @@ Modified:
 
 Created:
 - `docs/missions/2026-11-28-open-webui-0-13-5/report.md` (this file).
+- Fix 1: `bin/open-webui-volume.sh`, backup/restore of the Open WebUI volume
+  (F1.1, F1.2).
+
+Modified in fix 1:
+- `roles/open_webui/README.md`, sections "Updating" step 1 and deploy snippet,
+  "Backup and restore", "Rollback": they now use the script. The old commands had
+  the same flaws as the runbook.
+- `BACKLOG.md`: Cleanup entry for the same restore pattern in
+  `roles/portainer/README.md` (out of scope here).
 - `mission.md`: state and log updated.
 
 Left unchanged on purpose:
@@ -231,42 +253,74 @@ Acceptance criteria:
 | AC3 | VERIFIED | `git diff origin/main --stat`: defaults (1 line), role README, README, BACKLOG, mission files. No task or template change |
 | AC4 | VERIFIED | ansible-lint, yamllint and syntax-check all exit 0 |
 | AC5 | VERIFIED | VM update `changed=1`, second run `changed=0`; image `:v0.13.5` and `/api/config` `0.13.5` on the VM |
-| AC6 | VERIFIED as written; NOT_VERIFIED as executed on the laptop | Owner runbook below. Backup, restore and rollback steps rehearsed on the VM. Ollama visibility was not testable on the VM (no Ollama there) |
-| AC-SAFE | VERIFIED | Main snapshot unchanged. Laptop `open-webui` before and after: same ID `96ee79d99b4e…`, image `v0.13.0`, started `2026-11-25T22:56:03Z`, restarts 0, healthy (`E/laptop-baseline.log`, `E/laptop-final.log`). Laptop access was read-only: `docker inspect`, `docker ps`, `docker image ls`, `docker system df -v`, `systemctl is-*`, `ss`. No `make play*`, no `pass`, no vault, no `--diff`, no hook bypassed |
+| AC6 | VERIFIED as written and VM-rehearsed (fix 1); NOT_VERIFIED as executed on the laptop | Owner runbook below; backup gates the apply; restore validates and stages before touching live data; failure paths in "Verification of fix 1". Ollama visibility was not testable on the VM (no Ollama there) |
+| AC-SAFE | VERIFIED | Main snapshot unchanged. Laptop `open-webui` before and after: same ID `96ee79d99b4e…`, image `v0.13.0`, started `2026-11-25T22:56:03Z`, restarts 0, healthy (`E/laptop-baseline.log`, `E/laptop-final.log`, after fix 1 `E/laptop-final-fix1.log`: same values, volumes `open-webui` and `brain-rag_open-webui` only). Laptop access was read-only: `docker inspect`, `docker ps`, `docker image ls`, `docker system df -v`, `systemctl is-*`, `ss`. No `make play*`, no `pass`, no vault, no `--diff`, no hook bypassed |
+
+## Verification of fix 1 (review 1, F1.1 and F1.2)
+
+Script checks:
+- `pre-commit run shellcheck` and `shfmt` on `bin/open-webui-volume.sh`: Passed.
+  One file-level `SC2016` disable, because the single-quoted strings are scripts
+  for the helper container.
+- `bash -n`: OK.
+- Copied to the VM as `/tmp/open-webui-volume.sh` after the last lint fix. sha256
+  prefix `a4b8fb5fa41eef5c` is identical on the host and the VM, before and after
+  the rehearsal (`E/script-sha256.txt`): the rehearsed script is the committed one.
+
+The VM's 2.0 GB of free space was too little for staging plus prerestore, so
+`apt-get clean` was run on the VM (4.3 GB free afterwards).
+
+| Case | Log | Observed | Status |
+|---|---|---|---|
+| Backup (a): missing destination | `vm-fix1-backup-failures.log` | `FAILED: destination … does not exist`, exit 1; container `StartedAt` unchanged (never stopped) | VERIFIED |
+| Backup (b): 100 MB tmpfs destination | same | `FAILED: not enough space … 102400 KiB free, volume 1092292 KiB`, exit 1, before any stop; destination empty | VERIFIED |
+| Backup (c): failure after stop (test container `owui-t`, volume without a secret key) | same | Archive written as `.partial`; check `.webui_secret_key: Not found in archive` → `FAILED: archive check failed`, exit 1. Trap restarted the container (new `StartedAt`). No final `.tar.gz`. Test container and volume removed | VERIFIED |
+| Backup, success, gate open | `vm-fix1-backup-ok.log` | `archive checked: gzip complete, webui.db integrity ok, secret key present`; only the path on stdout; archive `-rw------- root` 1,009,903,622 bytes; container restarted | VERIFIED |
+| Gate closed | `vm-fix1-gate-closed.log` | `archive=$(… backup /root/does-not-exist) && run-vm.sh …` → chain exit 1; the apply log was never created | VERIFIED |
+| Restore (a): `<archive>` placeholder | `vm-fix1-restore-failures.log` | `FAILED: replace the <archive> placeholder`, exit 1 | VERIFIED |
+| Restore (b): missing file | same | `FAILED: archive … does not exist`, exit 1 | VERIFIED |
+| Restore (c): truncated archive (first 200 MB) | same | `gzip: … unexpected end of file` → `FAILED: archive check failed, nothing changed`, exit 1 | VERIFIED |
+| Restore failures: live data untouched | same | Before and after: container running, same `StartedAt`, `webui.db` sha256 prefix `c1bbac3054d86e8f`, only the `open-webui` volume | VERIFIED |
+| Restore, success → rollback | `vm-fix1-restore-ok.log`, `vm-fix1-rb-v0130.log`, `vm-fix1-rb-probe.log`, `vm-fix1-rb-data.log` | Archive checked, staging extracted and checked, container stopped and left stopped, `prerestore` volume kept, staging removed. Role at v0.13.0: `changed=1`, healthy, version 0.13.0, alembic `e42c8f710a36`, sign-in OK, chat intact | VERIFIED |
+| Gated update, then idempotence | `vm-fix1-gated-upgrade.log`, `vm-fix1-upgrade.log`, `vm-fix1-idempotence.log`, `vm-fix1-final.log` | `archive=$(backup) && apply`: `GATE OPEN`, `changed=1`; second run `changed=0`; v0.13.5 healthy, alembic `5e7a2c9d4b13` | VERIFIED |
+| Restore: put-back after a failed swap (live content replaced, then the check fails) | — | Not executed: it would need a fault injected between two helper runs. Code path reviewed only | NOT_VERIFIED |
 
 ## Owner runbook — this laptop (AC6)
 
-Run from this worktree, or from main after merge, as the owner. Notes:
-- `docker` works without sudo (owner is in the `docker` group).
+Fail-safe since fix 1. Each block stops at its first failure, and the apply runs
+only after a validated backup.
+
+Who runs what:
+- `bin/open-webui-volume.sh` and `docker` need no sudo: the owner is in the
+  `docker` group.
 - `make play-open-webui` needs:
   - the vault password through `pass` (`ansible.cfg` → `bin/ansible-vault-pass.sh`;
     gpg may prompt);
-  - sudo for `become: true` (`ANSIBLE_FLAGS` has no `-K`, so sudo must be usable
-    without a prompt, or run `sudo -v` first).
+  - sudo for `become: true`. `ANSIBLE_FLAGS` has no `-K`, so run `sudo -v` first if
+    sudo asks for a password.
 - If the vault decrypt fails with "Cannot allocate memory": run
   `gpgconf --kill all`, then `./bin/ansible-vault-pass.sh >/dev/null`.
 
 ```bash
+# Run as one block in bash, from the repository root (this worktree, or main after merge).
+set -euo pipefail
 cd /home/xgueret/Workspace/02-infrastructure/local/laptop-bootstrap-worktrees/open-webui-0-13-5
+mkdir -p ~/backups/open-webui
+sudo -v                                   # cache sudo for the play
+docker pull ghcr.io/open-webui/open-webui:v0.13.5   # before any stop; the pull is long, the old container keeps serving
 
-# 0. Optional: pull the image first, so the downtime does not include the ~1-2 GB pull
-docker pull ghcr.io/open-webui/open-webui:v0.13.5
+# 1. Backup: stops the container, writes and checks the archive, starts the container again.
+#    Exit 1 on any failure; the apply below then never runs.
+archive=$(bin/open-webui-volume.sh backup ~/backups/open-webui)
+echo "validated backup: $archive"         # keep this path: it is the only way back
 
-# 1. Backup (README "Backup and restore"). Stopping briefly is required for a consistent SQLite copy.
-#    Keep the archive somewhere private; it holds the secret key and all user data.
-mkdir -p ~/backups/open-webui && cd ~/backups/open-webui
-docker stop open-webui
-docker run --rm -v open-webui:/data:ro -v "$PWD":/backup alpine:3 \
-  sh -c 'umask 077 && tar czf /backup/open-webui-v0.13.0-$(date +%Y%m%d-%H%M).tar.gz -C /data .'
-docker start open-webui
-ls -l ~/backups/open-webui            # expect ~1 GB, -rw------- root
-cd -
+# 2. Apply (vault via pass + sudo). Recreates the container on v0.13.5 (and on 0.0.0.0:3030), waits for healthy.
+make play-open-webui
+```
 
-# 2. Apply (vault via pass + sudo). Recreates the container on v0.13.5 and waits for healthy.
-#    It also moves the port from 192.168.10.217:3030 to 0.0.0.0:3030 (repo value, filter unchanged).
-make play-open-webui                  # expect failed=0; changed includes the container task
+Checks, after step 2 exits 0:
 
-# 3. Checks
+```bash
 docker inspect open-webui --format '{{.Config.Image}}'                   # ghcr.io/open-webui/open-webui:v0.13.5
 docker ps --filter name=open-webui --format '{{.Status}} {{.Ports}}'      # Up … (healthy) 0.0.0.0:3030->8080/tcp
 curl -fsS http://127.0.0.1:3030/health                                    # {"status":true}
@@ -274,33 +328,42 @@ curl -fsS http://127.0.0.1:3030/api/config | jq -r .version               # 0.13
 docker logs open-webui 2>&1 | grep -E 'Running upgrade|Migration progress'   # 7 revisions, ends at 5e7a2c9d4b13
 docker exec open-webui curl -fsS http://host.docker.internal:11434/api/version   # Ollama reachable
 sudo iptables -S OPEN-WEBUI-INGRESS                                       # 192.168.10.70 RETURN + DROP
-ssh caddy-70 curl -fsS http://192.168.10.217:3030/health                  # via the homelab proxy path
-make play-open-webui                  # second run: changed=0
-
-# 4. UI: sign in at https://openwebui.internal (or http://127.0.0.1:3030) with the existing account;
-#    check old chats open, and that the Ollama models appear in the model selector.
+ssh caddy-70 curl -fsS http://192.168.10.217:3030/health                  # homelab proxy path
+make play-open-webui                                                      # second run: changed=0
 ```
+
+Then sign in at <https://openwebui.internal> (or <http://127.0.0.1:3030>) with the
+existing account. Check that old chats open and that the Ollama models appear in the
+model selector.
 
 If step 2 fails on the health timeout (300 s): the v0.13.5 chat conversion runs at
 start, in batches, and resumes after an interruption. Do not roll back right away.
 - Watch `docker logs -f open-webui` for "Migration progress".
 - Once `docker ps` shows `healthy`, rerun `make play-open-webui`.
 
-Rollback (README "Rollback"). Only with the backup from step 1:
+Rollback, only with the archive from step 1:
 
 ```bash
-docker stop open-webui
-cd ~/backups/open-webui
-docker run --rm -v open-webui:/data -v "$PWD":/backup:ro alpine:3 \
-  sh -c 'find /data -mindepth 1 -delete && tar xzf /backup/<archive>.tar.gz -C /data'
-# do NOT docker start (v0.13.5 would migrate the restored database again)
-cd -
-# Pin the old tag for this laptop:
-#   add  open_webui_version: "v0.13.0"  to group_vars/all/vars.yml
-#   (or run from a checkout where the default is v0.13.0)
-make play-open-webui                  # recreates on v0.13.0 from the restored data
+set -euo pipefail
+cd /home/xgueret/Workspace/02-infrastructure/local/laptop-bootstrap-worktrees/open-webui-0-13-5
+# Validates the archive and extracts it into a staging volume first; the live volume is
+# only replaced after that, and the previous content is kept in open-webui-prerestore-<ts>.
+# The container is left STOPPED. Never `docker start` it: v0.13.5 would migrate again.
+bin/open-webui-volume.sh restore "$archive"    # or the full path printed in step 1
+# Only if it exited 0: pin the old tag for this laptop, then let the role start it.
+echo 'open_webui_version: "v0.13.0"' >> group_vars/all/vars.yml
+make play-open-webui
 curl -fsS http://127.0.0.1:3030/api/config | jq -r .version               # 0.13.0
+# Once v0.13.0 works: docker volume rm open-webui-prerestore-<ts>
+# (and remove the pin from vars.yml when the role default is meant to apply again)
 ```
+
+A restore needs about 2.2 GB free in Docker's storage (staging + prerestore copies
+of the 1.1 GB volume). On a failure it prints `FAILED`:
+- If the failure came before the swap, nothing changed and the container keeps
+  running.
+- If the swap failed, the script puts the previous content back and leaves the
+  container stopped.
 
 After a successful update, optional cleanup:
 `docker image rm ghcr.io/open-webui/open-webui:v0.13.0`, once rollback is no longer
@@ -319,9 +382,17 @@ Post-update admin review, optional and not part of this mission:
   Portainer missions.
 - The VM was started with `virsh`, not `vagrant up`, because its Vagrant state
   belongs to the portainer worktree.
-- The VM is left running on v0.13.5, with a throwaway admin, a test chat and a
-  backup archive in `/root/owui-backup/` (~1 GB). No `smoke-down` (needs approval).
-  The libvirt network `vagrant-libvirt` was started.
+- The VM is left running on v0.13.5. Left on it:
+  - a throwaway admin and a test chat;
+  - backup archives in `/root/owui-backup/` and `/root/owui-backup2/` (~1 GB each);
+  - the script in `/tmp/`.
+  No `smoke-down` (needs approval). The libvirt network `vagrant-libvirt` was
+  started. Fix 1 ran `apt-get clean` on the VM to free space.
+- The restore's put-back branch (a swap that fails after the live content was
+  replaced) was not exercised. The other failure branches were.
+- The script trusts the container's own image to provide `tar`, `gzip` and
+  `python3`. This is true for v0.13.0 and v0.13.5 (rehearsed on both); a future
+  image could drop one of them, and the script would then fail closed.
 - The VM database is tiny (1 user, 1 chat). Migration time on the laptop's real
   history is unknown. If it exceeds the 300 s health timeout, the run fails while
   the migration continues (see the runbook).
@@ -331,6 +402,40 @@ Post-update admin review, optional and not part of this mission:
   content was not assessed.
 - Laptop bind drift (`192.168.10.217` vs `0.0.0.0`): pre-existing, its cause is not
   investigated. The apply will align the laptop with the repo.
+
+## Reviews
+
+Review 1, by Codex, routed by the pilot (`review-1.md`): CHANGES_REQUESTED.
+
+- F1.1 [major]: the backup did not gate the apply. FIXED.
+  - `bin/open-webui-volume.sh backup` checks space before any stop, then stops the
+    container and verifies the stop.
+  - It writes a uniquely named `.partial`, then checks that exact file (gzip
+    stream, `webui.db` integrity, secret key present, contents never printed).
+  - Only then does it rename the file and print its path.
+  - The container is restarted on every exit.
+  - The runbook runs as one `set -euo pipefail` block, so the apply runs only
+    after the validated backup.
+  - The image pull is done before the stop. The helper is the container's own
+    image, so no helper pull is needed.
+  - Evidence: "Verification of fix 1", rows backup (a)-(c), success and gate
+    closed.
+- F1.2 [major]: the restore deleted data before validating the archive. FIXED.
+  - It refuses placeholders and missing files, checks the archive, then extracts
+    it into a staging volume and checks the extracted data. Up to that point the
+    live data is untouched.
+  - Only then does it stop the container, copy the current content to a
+    `prerestore` volume, swap, and re-check, putting the previous content back on
+    failure.
+  - The container is left stopped. The never-start-v0.13.5-on-restored-data rule
+    is kept.
+  - The role README's "Backup and restore" and "Rollback" sections are aligned.
+  - Evidence: rows restore (a)-(c) and the restore → rollback row.
+- F1.3 [minor]: authorization not reconciled. FIXED.
+  - "Authorizations and decisions" below quotes the owner's conditional grant from
+    the mission log.
+  - Review 1 had major findings, so the condition is not met yet: no push, PR,
+    merge or laptop apply was done.
 
 ## Delegations (model economy)
 
@@ -344,17 +449,31 @@ Post-update admin review, optional and not part of this mission:
 
 ## Git state
 
-- Branch `feat/open-webui-0-13-5`, one commit on top of `f8299e9`. The hash is
-  given at the end of the executor's turn: "Version".
-- Commit authorized by the mission. Not pushed, no PR, no merge.
-- pre-commit ran on the staged files and again as the commit hook. Not bypassed.
+- Branch `feat/open-webui-0-13-5` on top of `f8299e9`:
+  - `c318c0b`: the version bump.
+  - The fix-1 commit, whose hash is given at the end of the executor's turn
+    ("Version").
+- Not pushed, no PR, no merge.
+- pre-commit ran on the staged files and as the commit hook. Not bypassed.
 
-## Decisions required
+## Authorizations and decisions
 
-- D1, after the Codex review: the owner chooses when to run the runbook above. It
-  is mutating: brief downtime, a one-way migration, vault and sudo.
-- Then push and PR (not authorized in this mission).
+- Mission header: commit on the branch only.
+- Owner grant, recorded in the mission log on 2026-11-28 ("tu es autorisé à faire :
+  il te restera à pousser, ouvrir la PR, fusionner, et appliquer la mise à jour sur
+  ton portable"). It applies to this mission only, and only after a Codex review
+  with no blocker or major finding:
+  - push `feat/open-webui-0-13-5`;
+  - open a PR to `main`;
+  - merge, keeping the commits, once CI is green;
+  - then the laptop apply per the runbook above.
+- Steps that need the real vault (`pass`) or an interactive sudo password stay with
+  the owner. The pilot routes these steps; the executor does not start them.
+- Status: review 1 had major findings, so the condition is not met. Nothing beyond
+  the commit was done. Review 2 decides.
 
 ## Recommended next action
 
-Codex review of this branch, routed by the pilot. Then the owner runs the runbook.
+Codex review 2 of this branch, routed by the pilot. If it has no blocker or major
+finding, the owner's grant applies: push, PR, merge once CI is green, then the laptop
+runbook. The `pass` and sudo prompts stay with the owner.

@@ -13,8 +13,9 @@ Last review: 2026-11-28.
   VM upgrade, idempotence and backup-based rollback verified. The laptop still
   runs v0.13.0 (container published on `192.168.10.217:3030`, not the
   `0.0.0.0:3030` the repo sets: the apply recreates it on `0.0.0.0`).
-- Next step: Codex review, then the owner's backup and `make play-open-webui`
-  (runbook in the mission report).
+- Next step: Codex review 2 (review 1's findings fixed: fail-safe
+  `bin/open-webui-volume.sh`), then push, PR and merge under the owner's
+  conditional grant, then the owner's runbook (mission report).
   Source: `docs/missions/2026-11-28-open-webui-0-13-5/`.
 
 ### `portainer.internal` (mission `2026-11-16-portainer-local`)
@@ -27,6 +28,13 @@ Last review: 2026-11-28.
   Source: `docs/missions/2026-11-16-portainer-local/`.
 
 ## Cleanup
+
+### Portainer README restore deletes before validating
+- `roles/portainer/README.md` "Backup and restore" restores with
+  `find /data -mindepth 1 -delete && tar xzf …`: a wrong or truncated archive
+  empties the volume first. Open WebUI moved to a checked, staged restore
+  (`bin/open-webui-volume.sh`); Portainer could get the same, or reuse the
+  script with a parameterised data check. Source: `docs/missions/2026-11-28-open-webui-0-13-5/` (review 1, F1.2).
 
 ### `.claude/commands/*.md` call bare Ansible tools
 - `lint.md`, `quality.md`, `clean.md`, `update-readme.md` run `ansible-playbook`
