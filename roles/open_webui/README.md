@@ -41,7 +41,7 @@ right after the first install.
 | Variable | Default | Description |
 |---|---|---|
 | `open_webui_image` | `ghcr.io/open-webui/open-webui` | Official image, without tag |
-| `open_webui_version` | `v0.13.0` | Release tag. Must match `vX.Y.Z`: `main`, `latest`, `dev` are rejected |
+| `open_webui_version` | `v0.13.5` | Release tag. Must match `vX.Y.Z`: `main`, `latest`, `dev` are rejected |
 | `open_webui_container_name` | `open-webui` | Container name |
 | `open_webui_volume_name` | `open-webui` | Named volume mounted on `/app/backend/data` |
 | `open_webui_bind_address` | `127.0.0.1` | Host IPv4 address the port is published on. Not `127.*` → LAN filter installed |
@@ -101,7 +101,7 @@ vault or Ansible output. It is part of the volume: back it up with the rest.
 
 ```bash
 docker ps --filter name=open-webui --format '{{.Names}} {{.Image}} {{.Status}} {{.Ports}}'
-#   expect: open-webui ghcr.io/open-webui/open-webui:v0.13.0 Up … (healthy) 127.0.0.1:3030->8080/tcp
+#   expect: open-webui ghcr.io/open-webui/open-webui:v0.13.5 Up … (healthy) 127.0.0.1:3030->8080/tcp
 curl -fsS http://127.0.0.1:3030/health                       # {"status":true}
 docker inspect open-webui --format '{{.HostConfig.RestartPolicy.Name}}'   # unless-stopped
 docker exec open-webui curl -fsS http://host.docker.internal:11434/api/version   # Ollama reachable
@@ -119,7 +119,8 @@ image `{{ open_webui_image }}:{{ open_webui_version }}`. Changing it and rerunni
 role pulls that tag and recreates the container on the same volume; the database,
 uploads and the secret key file stay in the volume. A second run with the same
 version reports `changed=0`. Verified on a VM, v0.12.5 → v0.13.0 (mission
-`2026-11-05-open-webui`).
+`2026-11-05-open-webui`) and v0.13.0 → v0.13.5, backup-based rollback included
+(mission `2026-11-28-open-webui-0-13-5`).
 
 1. Back up the volume (below). An update is a one-way database migration: this
    backup is the only way back (see [Rollback](#rollback)).

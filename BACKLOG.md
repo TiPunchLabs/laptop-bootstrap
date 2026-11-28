@@ -4,9 +4,18 @@ Open work, cleanup and deferred improvements. GitHub issues are disabled on this
 repo, so this file is the single place to track them. Remove an entry once it is
 done (git history keeps the trace).
 
-Last review: 2026-11-16.
+Last review: 2026-11-28.
 
 ## In progress
+
+### Open WebUI v0.13.5 (mission `2026-11-28-open-webui-0-13-5`)
+- Status: `open_webui_version` bumped to v0.13.5 on branch `feat/open-webui-0-13-5`;
+  VM upgrade, idempotence and backup-based rollback verified. The laptop still
+  runs v0.13.0 (container published on `192.168.10.217:3030`, not the
+  `0.0.0.0:3030` the repo sets: the apply recreates it on `0.0.0.0`).
+- Next step: Codex review, then the owner's backup and `make play-open-webui`
+  (runbook in the mission report).
+  Source: `docs/missions/2026-11-28-open-webui-0-13-5/`.
 
 ### `portainer.internal` (mission `2026-11-16-portainer-local`)
 - Status: role `portainer` (2.45.3 LTS) and the shared `docker_port_filter` are on
